@@ -1,16 +1,34 @@
-# Composer dependencies — run `composer install` to restore
-/vendor/
+# Node / React dev stuff
+node_modules/
+src/
 
-# Node dependencies — run `npm install` to restore
-/node_modules/
+# Build tools / configs (not needed in plugin)
+package.json
+package-lock.json
+webpack.config.js
 
-# Compiled React assets — run `npm run build` to restore
-/build/
+# Temporary build folder (your zip prep folder)
+plugin-build/
 
-# OS / editor artefacts
+# OS junk
 .DS_Store
 Thumbs.db
+
+# Logs
 *.log
-.idea/
+
+# Environment files
+.env
+
+# VS Code (optional)
 .vscode/
-*.swp
+
+# Mac zip junk
+__MACOSX/
+
+# Composer (optional choice)
+# If you KEEP vendor (recommended), DO NOT ignore it
+# vendor/
+
+# GitHub / misc
+*.zip

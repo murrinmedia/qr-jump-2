@@ -70,11 +70,11 @@ class Admin {
 			true // Load in footer.
 		);
 
-		// index.css is produced automatically by @wordpress/scripts.
-		if ( file_exists( QRJUMP_PLUGIN_DIR . 'build/index.css' ) ) {
+		// @wordpress/scripts extracts imported stylesheets to style-index.css.
+		if ( file_exists( QRJUMP_PLUGIN_DIR . 'build/style-index.css' ) ) {
 			wp_enqueue_style(
 				'qrjump-admin',
-				QRJUMP_PLUGIN_URL . 'build/index.css',
+				QRJUMP_PLUGIN_URL . 'build/style-index.css',
 				array( 'wp-components' ),
 				$asset['version']
 			);
