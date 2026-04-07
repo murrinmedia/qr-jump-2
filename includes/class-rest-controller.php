@@ -411,6 +411,9 @@ class REST_Controller {
 		$new_id = (int) $wpdb->insert_id;
 		$code   = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$codes_table} WHERE id = %d", $new_id ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
+		// Purge any cached copy of the new short URL.
+		Cache_Purger::purge_url( $code->slug );
+
 		return rest_ensure_response( $this->prepare_code( $code ) );
 	}
 
@@ -563,6 +566,9 @@ class REST_Controller {
 			);
 		}
 
+		// Purge cached copy — destination or status may have changed.
+		Cache_Purger::purge_url( $existing->slug );
+
 		return $this->get_code( $request );
 	}
 
@@ -591,11 +597,18 @@ class REST_Controller {
 			return new \WP_Error( 'qrjump_not_found', __( 'QR code not found.', 'qr-jump' ), array( 'status' => 404 ) );
 		}
 
+		$slug = $wpdb->get_var( $wpdb->prepare( "SELECT slug FROM {$codes_table} WHERE id = %d", $id ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
 		// Delete scan history first.
 		$wpdb->delete( $scans_table, array( 'qr_code_id' => $id ), array( '%d' ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		// Delete the code record.
 		$wpdb->delete( $codes_table, array( 'id' => $id ), array( '%d' ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		// Purge cached copy so the URL returns 404 rather than stale content.
+		if ( $slug ) {
+			Cache_Purger::purge_url( (string) $slug );
+		}
 
 		return rest_ensure_response( array( 'deleted' => true, 'id' => $id ) );
 	}

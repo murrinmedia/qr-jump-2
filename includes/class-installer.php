@@ -29,8 +29,12 @@ class Installer {
 		// Schedule report cron jobs.
 		Report_Scheduler::schedule_all();
 
-		// Flush rewrite rules so /go/<slug> is routable immediately.
+		// Flush rewrite rules so /qr/<slug> is routable immediately.
 		flush_rewrite_rules();
+
+		// Clear all caches so no stale responses from before plugin install
+		// can interfere with short-URL redirects.
+		Cache_Purger::purge_all();
 
 		update_option( 'qrjump_db_version', QRJUMP_DB_VERSION, false );
 	}
