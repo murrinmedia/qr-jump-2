@@ -1,15 +1,19 @@
 /**
  * QR Jump REST API client.
  *
- * A thin wrapper around the Fetch API that:
- *   • Always sets the WP REST nonce header.
- *   • Always sends/expects JSON (except for the binary QR image endpoint).
- *   • Throws descriptive errors with the WP REST error code attached.
+ * Thin wrapper around the Fetch API:
+ *   • Always sends the WP REST nonce (X-WP-Nonce header).
+ *   • Always sends/expects JSON (except binary QR image endpoints).
+ *   • Throws descriptive Error objects with `.code` and `.statusCode`.
+ *
+ * Binary image endpoints (qrUrl, qrPreviewUrl) return constructed URL strings
+ * for use directly in <img src> or <a href> — the browser fetches them with
+ * the nonce passed as _wpnonce query param (accepted by WP REST).
  */
 
 const { apiUrl, nonce } = window.qrJumpData;
 
-// ─── Core request helper ──────────────────────────────────────────────────────
+// ─── Internal helpers ────────────────────────────────────────────────────────
 
 async function request( endpoint, options = {} ) {
 	const url = `${ apiUrl }${ endpoint }`;
@@ -26,7 +30,7 @@ async function request( endpoint, options = {} ) {
 	const data = await response.json().catch( () => ( {} ) );
 
 	if ( ! response.ok ) {
-		const err = new Error( data.message || `HTTP ${ response.status }` );
+		const err      = new Error( data.message || `HTTP ${ response.status }` );
 		err.code       = data.code || 'unknown_error';
 		err.statusCode = response.status;
 		err.data       = data;
@@ -36,11 +40,9 @@ async function request( endpoint, options = {} ) {
 	return { data, headers: response.headers };
 }
 
-// Convenience shorthand that unwraps the data payload.
 async function get( endpoint, params = {} ) {
 	const qs = new URLSearchParams( params ).toString();
-	const { data, headers } = await request( qs ? `${ endpoint }?${ qs }` : endpoint );
-	return { data, headers };
+	return request( qs ? `${ endpoint }?${ qs }` : endpoint );
 }
 
 async function post( endpoint, body = {} ) {
@@ -64,16 +66,22 @@ async function del( endpoint ) {
 	return data;
 }
 
+/** Build a signed image URL for use in <img src> or download links. */
+function signedUrl( path, params = {} ) {
+	const qs = new URLSearchParams( { _wpnonce: nonce, ...params } ).toString();
+	return `${ apiUrl }${ path }?${ qs }`;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const api = {
 
 	codes: {
 		/**
-		 * List codes with optional filtering / sorting / pagination.
+		 * List codes.
 		 *
-		 * @param {Object} params
-		 * @returns {Promise<{data: Array, total: number, totalPages: number}>}
+		 * @param {Object} params  { page, per_page, search, status, orderby, order }
+		 * @returns {Promise<{ data: Array, total: number, totalPages: number }>}
 		 */
 		list: async ( params = {} ) => {
 			const { data, headers } = await get( '/codes', params );
@@ -90,12 +98,7 @@ export const api = {
 		/** @param {Object} payload */
 		create: ( payload ) => post( '/codes', payload ),
 
-		/**
-		 * Partial update — only fields present in payload are written.
-		 *
-		 * @param {number} id
-		 * @param {Object} payload
-		 */
+		/** @param {number} id @param {Object} payload */
 		update: ( id, payload ) => put( `/codes/${ id }`, payload ),
 
 		/** @param {number} id */
@@ -105,17 +108,22 @@ export const api = {
 		stats: ( id ) => get( `/codes/${ id }/stats` ).then( r => r.data ),
 
 		/**
-		 * Build the QR image URL for use in <img src="..."> or download links.
-		 * Nonce is passed as a query param so the browser can load the image directly.
+		 * Signed URL for the QR image of a saved code.
+		 * Safe to use as <img src> or <a href download>.
 		 *
 		 * @param {number} id
-		 * @param {Object} params  { format: 'png'|'svg', size: number, download: boolean }
+		 * @param {Object} params  { format, size, download, fg_colour, bg_colour }
 		 */
-		qrUrl: ( id, params = {} ) => {
-			const qs = new URLSearchParams( { _wpnonce: nonce, ...params } ).toString();
-			return `${ apiUrl }/codes/${ id }/qr?${ qs }`;
-		},
+		qrUrl: ( id, params = {} ) => signedUrl( `/codes/${ id }/qr`, params ),
 	},
+
+	/**
+	 * Signed URL for the QR preview endpoint (no saved code required).
+	 *
+	 * @param {string} url        The short URL to encode in the QR.
+	 * @param {Object} params     { format, size, fg_colour, bg_colour }
+	 */
+	qrPreviewUrl: ( url, params = {} ) => signedUrl( '/qr-preview', { url, ...params } ),
 
 	dashboard: () => get( '/dashboard' ).then( r => r.data ),
 
@@ -126,11 +134,9 @@ export const api = {
 
 	slugs: {
 		/**
-		 * Check if a slug is available.
-		 *
 		 * @param {string} slug
 		 * @param {number} [excludeId=0]  Pass the current code ID when editing.
-		 * @returns {Promise<{valid: boolean, slug: string, message: string}>}
+		 * @returns {Promise<{ valid: boolean, slug: string, message: string }>}
 		 */
 		validate: ( slug, excludeId = 0 ) =>
 			post( '/slugs/validate', { slug, exclude_id: excludeId } ),
