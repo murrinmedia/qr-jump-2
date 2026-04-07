@@ -26,9 +26,9 @@ class Redirect_Handler {
 	/**
 	 * Entry point — attached to 'parse_request'.
 	 *
-	 * @param \WP $wp Current WordPress environment instance.
+	 * Hooked to 'init' — no arguments passed.
 	 */
-	public function handle( \WP $wp ): void {
+	public function handle(): void {
 		$prefix = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
 		if ( '' === $prefix ) {
 			return;

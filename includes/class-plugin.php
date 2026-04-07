@@ -46,8 +46,9 @@ final class Plugin {
 		// i18n.
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 
-		// Handle short-URL redirects as early as possible.
-		add_action( 'parse_request', array( new Redirect_Handler(), 'handle' ), 1 );
+		// Handle short-URL redirects as early as possible — fires before
+		// caching plugins, canonical redirects, and template routing.
+		add_action( 'init', array( new Redirect_Handler(), 'handle' ), 1 );
 
 		// REST API.
 		add_action( 'rest_api_init', array( new REST_Controller(), 'register_routes' ) );
