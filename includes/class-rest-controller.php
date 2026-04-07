@@ -144,7 +144,7 @@ class REST_Controller {
 				'args'                => array(
 					'url' => array(
 						'required'          => true,
-						'sanitize_callback' => 'trim',
+						'sanitize_callback' => static function ( $v ) { return trim( (string) $v ); },
 					),
 					'format' => array(
 						'default'           => 'png',
@@ -1156,7 +1156,7 @@ class REST_Controller {
 	private function code_args( bool $required ): array {
 		return array(
 			'title'           => array( 'required' => $required,  'sanitize_callback' => 'sanitize_text_field' ),
-			'destination_url' => array( 'required' => $required,  'sanitize_callback' => 'trim' ),
+			'destination_url' => array( 'required' => $required,  'sanitize_callback' => static function ( $v ) { return trim( (string) $v ); } ),
 			'slug'            => array( 'required' => false,      'sanitize_callback' => 'sanitize_text_field' ),
 			'status'          => array( 'default'  => 1,          'sanitize_callback' => 'absint' ),
 			'redirect_type'   => array( 'default'  => 302,        'sanitize_callback' => 'absint' ),
