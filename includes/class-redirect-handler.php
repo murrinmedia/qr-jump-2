@@ -39,7 +39,7 @@ class Redirect_Handler {
 		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
 		list( $request_path ) = explode( '?', $request_uri, 2 );
 
-		// Strip home path prefix for subdirectory installs (e.g. /mysite/go/abc).
+		// Strip home path prefix for subdirectory installs (e.g. /mysite/qr/abc).
 		$home_path = (string) parse_url( home_url(), PHP_URL_PATH );
 		$home_path = rtrim( $home_path, '/' );
 		if ( $home_path && 0 === strpos( $request_path, $home_path . '/' ) ) {
@@ -52,6 +52,11 @@ class Redirect_Handler {
 		if ( 0 !== strpos( $request, $prefix . '/' ) ) {
 			return;
 		}
+
+		// ── This IS a QR Jump short URL ──────────────────────────────────────
+		// Signal every caching layer immediately — before any slug lookup or
+		// redirect — so no caching plugin can store this response.
+		$this->prevent_caching();
 
 		$slug = substr( $request, strlen( $prefix ) + 1 );
 		$slug = trim( $slug, '/' );
@@ -105,6 +110,57 @@ class Redirect_Handler {
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Prevent every caching layer from storing or serving a cached response
+	 * for this request.
+	 *
+	 * Called as soon as a QR Jump prefix match is confirmed — before any
+	 * database lookup or redirect — so it runs regardless of whether the slug
+	 * is valid, invalid, or points to an inactive code.
+	 *
+	 * Strategy:
+	 *  1. Define the standard WordPress cache-bypass constants that every
+	 *     well-behaved caching plugin checks (DONOTCACHEPAGE, DONOTCACHEDB,
+	 *     DONOTMINIFY, DONOTCDN).
+	 *  2. Call nocache_headers() to emit HTTP headers that tell downstream
+	 *     proxies, CDNs, and the browser not to cache this response.
+	 *  3. Send an explicit Cache-Control header that overrides any previously
+	 *     set value (some caching plugins send headers before ours).
+	 *
+	 * This does NOT require users to manually add exclusions in their caching
+	 * plugin settings.
+	 */
+	private function prevent_caching(): void {
+		// WordPress cache-bypass constants — checked by virtually every
+		// caching plugin (WP Rocket, FlyingPress, LiteSpeed, W3TC, etc.)
+		// before they decide to store or serve a cached copy.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! defined( 'DONOTCACHEDB' ) ) {
+			define( 'DONOTCACHEDB', true );
+		}
+		if ( ! defined( 'DONOTMINIFY' ) ) {
+			define( 'DONOTMINIFY', true );
+		}
+		if ( ! defined( 'DONOTCDN' ) ) {
+			define( 'DONOTCDN', true );
+		}
+
+		// WordPress helper — sets Expires, Cache-Control, and Pragma headers.
+		if ( function_exists( 'nocache_headers' ) ) {
+			nocache_headers();
+		}
+
+		// Belt-and-braces: send a definitive Cache-Control header so that
+		// reverse proxies, CDNs (Cloudflare, etc.), and the browser all know
+		// this response must never be stored or reused.
+		if ( ! headers_sent() ) {
+			header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0', true );
+			header( 'Pragma: no-cache', true );
+		}
+	}
 
 	/**
 	 * Fetch the QR code row for the given slug.
