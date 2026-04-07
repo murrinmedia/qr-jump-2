@@ -495,25 +495,6 @@
 		gap: 14px;
 	}
 
-	// ─── Two-column edit layout ───────────────────────────────────────────────
-
-	.qrjump-edit-layout {
-		display: grid;
-		grid-template-columns: 1fr 260px;
-		gap: 20px;
-		align-items: start;
-
-		@media (max-width: 1100px) { grid-template-columns: 1fr; }
-	}
-
-	.qrjump-edit-sidebar-stack {
-		display: flex;
-		flex-direction: column;
-		gap: 14px;
-		position: sticky;
-		top: 24px;
-	}
-
 	// ─── QR Preview panel ─────────────────────────────────────────────────────
 
 	.qrjump-qr-preview {
@@ -801,6 +782,207 @@
 		&__icon { font-size: 36px; margin-bottom: 12px; opacity: 0.35; }
 		&__title { font-size: 16px; font-weight: 600; color: var(--qrjump-text); margin: 0 0 8px; }
 		&__message { font-size: 13.5px; margin: 0 0 20px; }
+	}
+
+	// ─── Page header count badge ─────────────────────────────────────────────
+
+	.qrjump-page-header__count {
+		font-size: 13px;
+		font-weight: 400;
+		color: var(--qrjump-text-muted);
+		margin-left: 8px;
+		background: #f0f0f1;
+		border-radius: 10px;
+		padding: 1px 8px;
+	}
+
+	// ─── Filters bar (QR list) ────────────────────────────────────────────────
+
+	.qrjump-filters {
+		display: flex;
+		gap: 10px;
+		margin-bottom: 14px;
+		align-items: center;
+		flex-wrap: wrap;
+
+		&__search { flex: 1; min-width: 200px; }
+		&__status { flex-shrink: 0; }
+	}
+
+	.qrjump-search-input {
+		display: block;
+		width: 100%;
+		height: 36px;
+		padding: 0 10px;
+		border: 1px solid var(--qrjump-border);
+		border-radius: var(--qrjump-radius-sm);
+		font-size: 13px;
+		font-family: inherit;
+		color: var(--qrjump-text);
+		background: #fff;
+
+		&:focus {
+			outline: 2px solid var(--qrjump-accent);
+			outline-offset: -1px;
+			border-color: var(--qrjump-accent);
+		}
+	}
+
+	// ─── Sort icon ────────────────────────────────────────────────────────────
+
+	.qrjump-sort-icon {
+		opacity: 0.3;
+		font-size: 10px;
+		margin-left: 3px;
+		&--active { opacity: 0.8; }
+	}
+
+	// ─── Destination cell ─────────────────────────────────────────────────────
+
+	.qrjump-table__destination {
+		max-width: 220px;
+
+		a {
+			display: block;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: var(--qrjump-accent);
+			text-decoration: none;
+			font-size: 12px;
+			&:hover { text-decoration: underline; }
+		}
+	}
+
+	// ─── Edit page two-column layout ──────────────────────────────────────────
+
+	.qrjump-edit-layout {
+		display: grid;
+		grid-template-columns: 1fr 260px;
+		gap: 20px;
+		align-items: start;
+
+		@media (max-width: 1100px) { grid-template-columns: 1fr; }
+
+		&__form  { min-width: 0; }
+
+		&__preview {
+			position: sticky;
+			top: 24px;
+		}
+	}
+
+	// ─── Edit page scan stats bar ─────────────────────────────────────────────
+
+	.qrjump-edit-stats {
+		display: flex;
+		gap: 0;
+		margin-bottom: 20px;
+		background: var(--qrjump-surface);
+		border-radius: var(--qrjump-radius);
+		box-shadow: var(--qrjump-shadow);
+		border: 1px solid var(--qrjump-border);
+		overflow: hidden;
+	}
+
+	.qrjump-edit-stat {
+		flex: 1;
+		padding: 14px 16px;
+		border-right: 1px solid var(--qrjump-border-light);
+		min-width: 0;
+
+		&:last-child { border-right: none; }
+
+		&--wide { flex: 2; }
+
+		&__label {
+			display: block;
+			font-size: 10.5px;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--qrjump-text-muted);
+			font-weight: 700;
+			margin-bottom: 5px;
+		}
+
+		&__value {
+			display: block;
+			font-size: 18px;
+			font-weight: 700;
+			color: var(--qrjump-text);
+			font-variant-numeric: tabular-nums;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+
+			// Smaller for the date string.
+			.qrjump-edit-stat--wide & { font-size: 13px; font-weight: 500; }
+		}
+	}
+
+	// ─── Standalone label ─────────────────────────────────────────────────────
+
+	.qrjump-label {
+		display: block;
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--qrjump-text);
+		margin-bottom: 6px;
+	}
+
+	// ─── Short URL preview (below slug input) ─────────────────────────────────
+
+	.qrjump-short-url-preview {
+		font-size: 12px;
+		color: var(--qrjump-text-muted);
+		margin: 8px 0 0;
+
+		a { color: var(--qrjump-accent); text-decoration: none; word-break: break-all; }
+		a:hover { text-decoration: underline; }
+
+		&__label { font-weight: 600; }
+	}
+
+	// ─── Help text ────────────────────────────────────────────────────────────
+
+	.qrjump-help-text {
+		font-size: 12px;
+		color: var(--qrjump-text-muted);
+		margin: 0 0 12px;
+		line-height: 1.5;
+	}
+
+	// ─── Form section body ────────────────────────────────────────────────────
+
+	// Override: form-section already has __body with padding; form-rows inside
+	// it shouldn't add bottom margin on the very last row.
+	.qrjump-form-section__body {
+		.qrjump-form-row:last-child { margin-bottom: 0; }
+	}
+
+	// ─── Two-column form row ──────────────────────────────────────────────────
+
+	.qrjump-form-row--cols-2 {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 16px;
+
+		@media (max-width: 640px) { grid-template-columns: 1fr; }
+	}
+
+	// ─── Form actions (submit row) ────────────────────────────────────────────
+
+	.qrjump-form-actions {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding-top: 8px;
+	}
+
+	.qrjump-unsaved-hint {
+		font-size: 12px;
+		color: var(--qrjump-text-muted);
+		font-style: italic;
 	}
 
 	// ─── Recent activity list ─────────────────────────────────────────────────

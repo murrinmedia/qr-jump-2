@@ -2,13 +2,15 @@
  * QR Codes list page.
  *
  * Paginated, searchable, sortable table of all QR codes.
- * Full implementation (inline stats, bulk actions, filters) in Phase 3.
+ * Includes status filter, short-URL copy button, and inline scan counts.
  */
 
 import { useState, useEffect, useCallback } from '@wordpress/element';
-import { Button, Spinner, SearchControl } from '@wordpress/components';
+import { Button, Spinner, SelectControl } from '@wordpress/components';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import Pagination from '../components/Pagination';
+import CopyButton from '../components/CopyButton';
 
 const PER_PAGE = 20;
 
@@ -17,28 +19,56 @@ export default function QRList() {
 
 	const [ codes,      setCodes      ] = useState( [] );
 	const [ total,      setTotal      ] = useState( 0 );
+	const [ totalPages, setTotalPages ] = useState( 1 );
 	const [ page,       setPage       ] = useState( 1 );
 	const [ search,     setSearch     ] = useState( '' );
+	const [ searchInput, setSearchInput ] = useState( '' );
+	const [ status,     setStatus     ] = useState( '' );
 	const [ orderby,    setOrderby    ] = useState( 'created_at' );
 	const [ order,      setOrder      ] = useState( 'DESC' );
 	const [ loading,    setLoading    ] = useState( true );
 	const [ error,      setError      ] = useState( null );
 
+	const prefix  = window.qrJumpData?.redirectPrefix || 'go';
+	const homeUrl = ( window.qrJumpData?.homeUrl || '' ).replace( /\/$/, '' );
+
 	const fetchCodes = useCallback( () => {
 		setLoading( true );
+		setError( null );
+
+		const params = { page, per_page: PER_PAGE, orderby, order };
+		if ( search ) params.search = search;
+		if ( status !== '' ) params.status = status;
+
 		api.codes
-			.list( { page, per_page: PER_PAGE, search, orderby, order } )
-			.then( ( { data, total: t } ) => {
+			.list( params )
+			.then( ( { data, total: t, totalPages: tp } ) => {
 				setCodes( data );
 				setTotal( t );
+				setTotalPages( tp );
 			} )
 			.catch( err => setError( err.message ) )
 			.finally( () => setLoading( false ) );
-	}, [ page, search, orderby, order ] );
+	}, [ page, search, status, orderby, order ] );
 
 	useEffect( () => {
 		fetchCodes();
 	}, [ fetchCodes ] );
+
+	// Debounce search: only commit to `search` state when user presses Enter or blurs.
+	function handleSearchKeyDown( e ) {
+		if ( e.key === 'Enter' ) {
+			setSearch( searchInput );
+			setPage( 1 );
+		}
+	}
+
+	function handleSearchBlur() {
+		if ( searchInput !== search ) {
+			setSearch( searchInput );
+			setPage( 1 );
+		}
+	}
 
 	function handleSort( col ) {
 		if ( col === orderby ) {
@@ -50,8 +80,9 @@ export default function QRList() {
 		setPage( 1 );
 	}
 
-	function handleDelete( id ) {
-		if ( ! window.confirm( 'Delete this QR code and all its scan history?' ) ) return;
+	function handleDelete( id, title ) {
+		const name = title ? `"${ title }"` : 'this QR code';
+		if ( ! window.confirm( `Delete ${ name } and all its scan history? This cannot be undone.` ) ) return;
 		api.codes.delete( id ).then( fetchCodes );
 	}
 
@@ -59,104 +90,174 @@ export default function QRList() {
 		<>
 			<div className="qrjump-page-header">
 				<h1 className="qrjump-page-header__title">
-					QR Codes{ total > 0 && <span style={ { fontSize: 14, fontWeight: 400, marginLeft: 8, color: '#757575' } }>{ total }</span> }
+					QR Codes
+					{ total > 0 && (
+						<span className="qrjump-page-header__count">{ total }</span>
+					) }
 				</h1>
 				<Button variant="primary" onClick={ () => navigate( '/codes/new' ) }>
 					Add New
 				</Button>
 			</div>
 
-			<div style={ { marginBottom: 16 } }>
-				<SearchControl
-					value={ search }
-					onChange={ val => { setSearch( val ); setPage( 1 ); } }
-					placeholder="Search by title, slug, or URL…"
-				/>
+			{ /* ── Filters bar ── */ }
+			<div className="qrjump-filters">
+				<div className="qrjump-filters__search">
+					<input
+						type="search"
+						className="qrjump-search-input"
+						placeholder="Search by title, slug, or URL…"
+						value={ searchInput }
+						onChange={ e => setSearchInput( e.target.value ) }
+						onKeyDown={ handleSearchKeyDown }
+						onBlur={ handleSearchBlur }
+						aria-label="Search QR codes"
+					/>
+				</div>
+				<div className="qrjump-filters__status">
+					<SelectControl
+						value={ status }
+						options={ [
+							{ label: 'All statuses', value: '' },
+							{ label: 'Active',       value: '1' },
+							{ label: 'Inactive',     value: '0' },
+						] }
+						onChange={ val => { setStatus( val ); setPage( 1 ); } }
+						__nextHasNoMarginBottom
+					/>
+				</div>
 			</div>
 
-			{ error && <p style={ { color: 'red' } }>{ error }</p> }
+			{ error && (
+				<div className="qrjump-notice qrjump-notice--error" style={ { marginBottom: 16 } }>
+					{ error }
+				</div>
+			) }
 
 			<div className="qrjump-table-wrap">
-				{ loading
-					? <div className="qrjump-spinner-wrap"><Spinner /></div>
-					: codes.length === 0
-						? (
-							<div className="qrjump-empty">
-								<p>No QR codes found.</p>
+				{ loading ? (
+					<div className="qrjump-spinner-wrap">
+						<Spinner />
+					</div>
+				) : codes.length === 0 ? (
+					<div className="qrjump-empty">
+						{ search || status !== '' ? (
+							<>
+								<p>No QR codes match your filters.</p>
+								<Button
+									variant="secondary"
+									onClick={ () => { setSearch( '' ); setSearchInput( '' ); setStatus( '' ); setPage( 1 ); } }
+								>
+									Clear filters
+								</Button>
+							</>
+						) : (
+							<>
+								<p>No QR codes yet.</p>
 								<Button variant="primary" onClick={ () => navigate( '/codes/new' ) }>
 									Create your first QR code
 								</Button>
-							</div>
-						)
-						: (
-							<table className="qrjump-table">
-								<thead>
-									<tr>
-										<SortHeader col="title"      label="Title"        current={ orderby } dir={ order } onSort={ handleSort } />
-										<SortHeader col="slug"       label="Slug"         current={ orderby } dir={ order } onSort={ handleSort } />
-										<th>Destination</th>
-										<th>Scans</th>
-										<SortHeader col="status"     label="Status"       current={ orderby } dir={ order } onSort={ handleSort } />
-										<SortHeader col="created_at" label="Created"      current={ orderby } dir={ order } onSort={ handleSort } />
-										<th>Actions</th>
+							</>
+						) }
+					</div>
+				) : (
+					<table className="qrjump-table">
+						<thead>
+							<tr>
+								<SortHeader col="title"      label="Title"    current={ orderby } dir={ order } onSort={ handleSort } />
+								<th>Short URL</th>
+								<th>Destination</th>
+								<SortHeader col="total_scans" label="Scans"   current={ orderby } dir={ order } onSort={ handleSort } />
+								<SortHeader col="status"      label="Status"  current={ orderby } dir={ order } onSort={ handleSort } />
+								<SortHeader col="created_at"  label="Created" current={ orderby } dir={ order } onSort={ handleSort } />
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{ codes.map( code => {
+								const shortUrl = `${ homeUrl }/${ prefix }/${ code.slug }`;
+								return (
+									<tr key={ code.id }>
+										<td>
+											<strong style={ { display: 'block' } }>{ code.title || '—' }</strong>
+											<span style={ { fontSize: 11, color: 'var(--qrjump-text-muted)', fontFamily: 'monospace' } }>
+												{ code.slug }
+											</span>
+										</td>
+										<td style={ { whiteSpace: 'nowrap' } }>
+											<span style={ { fontSize: 12, marginRight: 6 } }>
+												{ shortUrl }
+											</span>
+											<CopyButton text={ shortUrl } label="Copy" />
+										</td>
+										<td className="qrjump-table__destination">
+											<a
+												href={ code.destination_url }
+												target="_blank"
+												rel="noreferrer"
+												title={ code.destination_url }
+											>
+												{ code.destination_url }
+											</a>
+										</td>
+										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
+											{ Number( code.total_scans ).toLocaleString() }
+										</td>
+										<td>
+											<span className={ `qrjump-badge qrjump-badge--${ code.status ? 'active' : 'inactive' }` }>
+												{ code.status ? 'Active' : 'Inactive' }
+											</span>
+										</td>
+										<td style={ { whiteSpace: 'nowrap', color: 'var(--qrjump-text-muted)', fontSize: 12 } }>
+											{ code.created_at ? code.created_at.slice( 0, 10 ) : '—' }
+										</td>
+										<td style={ { whiteSpace: 'nowrap' } }>
+											<Button
+												variant="secondary"
+												size="small"
+												onClick={ () => navigate( `/codes/${ code.id }/edit` ) }
+												style={ { marginRight: 6 } }
+											>
+												Edit
+											</Button>
+											<Button
+												variant="tertiary"
+												size="small"
+												isDestructive
+												onClick={ () => handleDelete( code.id, code.title ) }
+											>
+												Delete
+											</Button>
+										</td>
 									</tr>
-								</thead>
-								<tbody>
-									{ codes.map( code => (
-										<tr key={ code.id }>
-											<td><strong>{ code.title || '—' }</strong></td>
-											<td><code style={ { fontSize: 12 } }>{ code.slug }</code></td>
-											<td style={ { maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>
-												<a href={ code.destination_url } target="_blank" rel="noreferrer" style={ { color: '#2271b1' } }>
-													{ code.destination_url }
-												</a>
-											</td>
-											<td>{ Number( code.total_scans ).toLocaleString() }</td>
-											<td>
-												<span className={ `qrjump-badge qrjump-badge--${ code.status ? 'active' : 'inactive' }` }>
-													{ code.status ? 'Active' : 'Inactive' }
-												</span>
-											</td>
-											<td style={ { whiteSpace: 'nowrap', color: '#757575', fontSize: 12 } }>
-												{ code.created_at ? code.created_at.slice( 0, 10 ) : '—' }
-											</td>
-											<td>
-												<Button
-													variant="secondary"
-													isSmall
-													onClick={ () => navigate( `/codes/${ code.id }/edit` ) }
-													style={ { marginRight: 6 } }
-												>
-													Edit
-												</Button>
-												<Button
-													variant="tertiary"
-													isSmall
-													isDestructive
-													onClick={ () => handleDelete( code.id ) }
-												>
-													Delete
-												</Button>
-											</td>
-										</tr>
-									) ) }
-								</tbody>
-							</table>
-						)
-				}
+								);
+							} ) }
+						</tbody>
+					</table>
+				) }
 			</div>
 
-			{ /* Phase 3: pagination controls here */ }
+			{ totalPages > 1 && (
+				<div style={ { marginTop: 16 } }>
+					<Pagination
+						currentPage={ page }
+						totalPages={ totalPages }
+						onPageChange={ p => setPage( p ) }
+					/>
+				</div>
+			) }
 		</>
 	);
 }
 
 function SortHeader( { col, label, current, dir, onSort } ) {
 	const active = col === current;
-	const arrow  = active ? ( dir === 'ASC' ? ' ↑' : ' ↓' ) : '';
 	return (
-		<th onClick={ () => onSort( col ) } style={ { cursor: 'pointer' } }>
-			{ label }{ arrow }
+		<th className="sortable" onClick={ () => onSort( col ) }>
+			{ label }
+			<span className={ `qrjump-sort-icon ${ active ? 'qrjump-sort-icon--active' : '' }` }>
+				{ active ? ( dir === 'ASC' ? ' ↑' : ' ↓' ) : ' ↕' }
+			</span>
 		</th>
 	);
 }
