@@ -1,13 +1,9 @@
 /**
  * Create / Edit QR code page.
  *
- * Handles both create (/codes/new) and update (/codes/:id/edit).
- * Includes:
- *  - Live QR preview (QRPreview component) for both new and saved codes.
- *  - Live slug availability check (SlugInput component).
- *  - Colour pickers (ColourPicker component) wired to the live preview.
- *  - Inline scan stats for saved codes.
- *  - Scan notification settings per code.
+ * For saved codes, full scan stats (totals, 30-day line chart, hour-of-day
+ * breakdown, top referrers) are loaded and displayed below the form — no
+ * separate stats screen required.
  */
 
 import { useState, useEffect } from '@wordpress/element';
@@ -25,6 +21,7 @@ import { api } from '../api/client';
 import QRPreview from '../components/QRPreview';
 import ColourPicker from '../components/ColourPicker';
 import SlugInput from '../components/SlugInput';
+import ScanChart from '../components/ScanChart';
 
 const DEFAULTS = {
 	title:           '',
@@ -47,21 +44,24 @@ export default function QREdit() {
 	const navigate = useNavigate();
 	const isNew    = ! id;
 
-	const [ form,       setForm       ] = useState( DEFAULTS );
-	const [ slugManual, setSlugManual ] = useState( false );
-	const [ loading,    setLoading    ] = useState( ! isNew );
-	const [ saving,     setSaving     ] = useState( false );
-	const [ notice,     setNotice     ] = useState( null );   // { type, message }
-	const [ stats,      setStats      ] = useState( null );   // scan stats for saved codes
+	const [ form,        setForm        ] = useState( DEFAULTS );
+	const [ slugManual,  setSlugManual  ] = useState( false );
+	const [ loading,     setLoading     ] = useState( ! isNew );
+	const [ saving,      setSaving      ] = useState( false );
+	const [ notice,      setNotice      ] = useState( null );
+	const [ stats,       setStats       ] = useState( null );   // inline totals
+	const [ fullStats,   setFullStats   ] = useState( null );   // chart + hourly + referrers
+	const [ statsLoading, setStatsLoading ] = useState( false );
 
-	const prefix  = window.qrJumpData?.redirectPrefix || 'go';
+	const prefix  = window.qrJumpData?.redirectPrefix || 'qr';
 	const homeUrl = ( window.qrJumpData?.homeUrl || '' ).replace( /\/$/, '' );
 
-	// ── Load existing code when editing ──────────────────────────────────────
+	// ── Load code + detailed stats when editing ───────────────────────────────
 
 	useEffect( () => {
 		if ( isNew ) return;
 
+		// Load code data.
 		api.codes.get( id )
 			.then( code => {
 				setForm( {
@@ -71,7 +71,6 @@ export default function QREdit() {
 				} );
 				setSlugManual( true );
 
-				// Inline stats returned by GET /codes/{id}.
 				if ( code.total_scans !== undefined ) {
 					setStats( {
 						total:        code.total_scans,
@@ -83,6 +82,12 @@ export default function QREdit() {
 			} )
 			.catch( () => setNotice( { type: 'error', message: 'Failed to load QR code.' } ) )
 			.finally( () => setLoading( false ) );
+
+		// Load detailed stats separately so they don't block the form.
+		setStatsLoading( true );
+		api.codes.stats( id )
+			.then( setFullStats )
+			.finally( () => setStatsLoading( false ) );
 	}, [ id, isNew ] );
 
 	// ── Field helpers ─────────────────────────────────────────────────────────
@@ -107,7 +112,6 @@ export default function QREdit() {
 
 		try {
 			const payload = { ...form };
-			// When auto-slug mode, omit slug so the server generates one.
 			if ( ! slugManual ) delete payload.slug;
 
 			if ( isNew ) {
@@ -126,6 +130,15 @@ export default function QREdit() {
 		}
 	}
 
+	// ── Reset scans ───────────────────────────────────────────────────────────
+
+	async function handleResetScans() {
+		if ( ! window.confirm( 'Reset all scan data for this code? This cannot be undone.' ) ) return;
+		await api.codes.resetScans( Number( id ) );
+		setStats( { total: 0, unique: 0, repeat: 0, last_scanned: null } );
+		setFullStats( prev => prev ? { ...prev, total: 0, unique_scans: 0, repeat_scans: 0, daily: [], hourly: [], referrers: [] } : null );
+	}
+
 	// ── Loading state ─────────────────────────────────────────────────────────
 
 	if ( loading ) {
@@ -134,16 +147,14 @@ export default function QREdit() {
 
 	// ── Derived values ────────────────────────────────────────────────────────
 
-	const shortUrl = form.slug ? `${ homeUrl }/${ prefix }/${ form.slug }` : null;
-
-	// For saved codes pass the ID; for new codes pass the short URL for preview.
+	const shortUrl        = form.slug ? `${ homeUrl }/${ prefix }/${ form.slug }` : null;
 	const previewCodeId   = isNew ? null : Number( id );
 	const previewShortUrl = isNew ? shortUrl : null;
 
 	return (
 		<div className="qrjump-edit-layout">
 
-			{ /* ── Left: form ── */ }
+			{ /* ── Left: form + stats ── */ }
 			<div className="qrjump-edit-layout__form">
 
 				<div className="qrjump-page-header">
@@ -166,7 +177,7 @@ export default function QREdit() {
 					</Notice>
 				) }
 
-				{ /* ── Scan stats (saved codes only) ── */ }
+				{ /* ── Inline stat totals ── */ }
 				{ ! isNew && stats && (
 					<div className="qrjump-edit-stats">
 						<div className="qrjump-edit-stat">
@@ -189,7 +200,7 @@ export default function QREdit() {
 						</div>
 						<div className="qrjump-edit-stat qrjump-edit-stat--wide">
 							<span className="qrjump-edit-stat__label">Last scan</span>
-							<span className="qrjump-edit-stat__value">
+							<span className="qrjump-edit-stat__value" style={ { fontSize: 13, fontWeight: 500 } }>
 								{ stats.last_scanned
 									? new Date( stats.last_scanned + 'Z' ).toLocaleString()
 									: 'Never'
@@ -198,21 +209,10 @@ export default function QREdit() {
 						</div>
 						<div className="qrjump-edit-stat qrjump-edit-stat--actions">
 							<Button
-								variant="secondary"
-								size="small"
-								onClick={ () => navigate( `/codes/${ id }/stats` ) }
-							>
-								View stats
-							</Button>
-							<Button
 								variant="tertiary"
 								size="small"
 								isDestructive
-								onClick={ async () => {
-									if ( ! window.confirm( 'Reset all scan data for this code? This cannot be undone.' ) ) return;
-									await api.codes.resetScans( Number( id ) );
-									setStats( { total: 0, unique: 0, repeat: 0, last_scanned: null } );
-								} }
+								onClick={ handleResetScans }
 							>
 								Reset stats
 							</Button>
@@ -220,9 +220,9 @@ export default function QREdit() {
 					</div>
 				) }
 
+				{ /* ── Form ── */ }
 				<form className="qrjump-form" onSubmit={ handleSubmit }>
 
-					{ /* ── Basic info ── */ }
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">Basic Info</h2>
@@ -251,7 +251,6 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					{ /* ── Slug ── */ }
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">Short URL</h2>
@@ -269,19 +268,15 @@ export default function QREdit() {
 						</div>
 						<div className="qrjump-form-section__body">
 							{ ! isNew ? (
-								// Editing: slug is locked — changing it would break printed QR codes.
 								<>
 									<p className="qrjump-help-text">
 										The slug is permanent and cannot be changed after creation.
-										Changing it would break any printed QR codes pointing to this URL.
 									</p>
 									{ shortUrl && (
 										<p className="qrjump-short-url-preview">
 											<span className="qrjump-short-url-preview__label">Short URL:</span>
 											{ ' ' }
-											<a href={ shortUrl } target="_blank" rel="noreferrer">
-												{ shortUrl }
-											</a>
+											<a href={ shortUrl } target="_blank" rel="noreferrer">{ shortUrl }</a>
 										</p>
 									) }
 								</>
@@ -299,9 +294,7 @@ export default function QREdit() {
 										<p className="qrjump-short-url-preview">
 											<span className="qrjump-short-url-preview__label">Short URL:</span>
 											{ ' ' }
-											<a href={ shortUrl } target="_blank" rel="noreferrer">
-												{ shortUrl }
-											</a>
+											<a href={ shortUrl } target="_blank" rel="noreferrer">{ shortUrl }</a>
 										</p>
 									) }
 								</>
@@ -313,7 +306,6 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					{ /* ── Behaviour ── */ }
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">Behaviour</h2>
@@ -344,7 +336,6 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					{ /* ── Appearance ── */ }
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">QR Appearance</h2>
@@ -370,7 +361,6 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					{ /* ── Notes ── */ }
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">Notes</h2>
@@ -387,7 +377,6 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					{ /* ── Scan notifications ── */ }
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">Scan Notifications</h2>
@@ -427,7 +416,6 @@ export default function QREdit() {
 						) }
 					</div>
 
-					{ /* ── Submit ── */ }
 					<div className="qrjump-form-actions">
 						<Button
 							variant="primary"
@@ -435,22 +423,14 @@ export default function QREdit() {
 							isBusy={ saving }
 							disabled={ saving }
 						>
-							{ saving
-								? 'Saving…'
-								: isNew
-									? 'Create QR Code'
-									: 'Save Changes'
-							}
+							{ saving ? 'Saving…' : isNew ? 'Create QR Code' : 'Save Changes' }
 						</Button>
-
 						{ ! isNew && (
 							<Button
 								variant="tertiary"
 								isDestructive
 								onClick={ async () => {
-									if ( ! window.confirm(
-										'Delete this QR code and all its scan history? This cannot be undone.'
-									) ) return;
+									if ( ! window.confirm( 'Delete this QR code and all its scan history? This cannot be undone.' ) ) return;
 									await api.codes.delete( Number( id ) );
 									navigate( '/codes' );
 								} }
@@ -461,6 +441,86 @@ export default function QREdit() {
 					</div>
 
 				</form>
+
+				{ /* ── Full stats (below form, saved codes only) ── */ }
+				{ ! isNew && (
+					<div style={ { marginTop: 24 } }>
+
+						{ /* 30-day line chart */ }
+						<div className="qrjump-card" style={ { marginBottom: 20 } }>
+							<div className="qrjump-card__header">
+								<h2 className="qrjump-card__title">Daily scans — last 30 days</h2>
+							</div>
+							<div className="qrjump-card__content">
+								{ statsLoading ? (
+									<div style={ { display: 'flex', justifyContent: 'center', padding: 24 } }>
+										<Spinner />
+									</div>
+								) : fullStats?.daily?.length > 0 ? (
+									<ScanChart data={ fullStats.daily } height={ 120 } />
+								) : (
+									<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No scan data yet.</p>
+								) }
+							</div>
+						</div>
+
+						<div className="qrjump-dashboard-grid">
+
+							{ /* Hour of day */ }
+							<div className="qrjump-card">
+								<div className="qrjump-card__header">
+									<h2 className="qrjump-card__title">Scans by hour of day</h2>
+								</div>
+								<div className="qrjump-card__content">
+									{ statsLoading ? (
+										<div style={ { display: 'flex', justifyContent: 'center', padding: 16 } }><Spinner /></div>
+									) : fullStats?.hourly?.length > 0 ? (
+										<HourChart data={ fullStats.hourly } />
+									) : (
+										<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No data yet.</p>
+									) }
+								</div>
+							</div>
+
+							{ /* Top referrers */ }
+							<div className="qrjump-card">
+								<div className="qrjump-card__header">
+									<h2 className="qrjump-card__title">Top referrers</h2>
+								</div>
+								{ statsLoading ? (
+									<div style={ { display: 'flex', justifyContent: 'center', padding: 16 } }><Spinner /></div>
+								) : fullStats?.referrers?.length > 0 ? (
+									<table className="qrjump-table">
+										<thead>
+											<tr>
+												<th>Referrer</th>
+												<th style={ { textAlign: 'right' } }>Scans</th>
+											</tr>
+										</thead>
+										<tbody>
+											{ fullStats.referrers.map( ( r, i ) => (
+												<tr key={ i }>
+													<td style={ { fontSize: 12, wordBreak: 'break-all' } }>
+														{ r.referrer || <em style={ { color: 'var(--qrjump-text-muted)' } }>Direct / unknown</em> }
+													</td>
+													<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
+														{ Number( r.scans ).toLocaleString() }
+													</td>
+												</tr>
+											) ) }
+										</tbody>
+									</table>
+								) : (
+									<div className="qrjump-card__content">
+										<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No referrer data yet.</p>
+									</div>
+								) }
+							</div>
+
+						</div>
+					</div>
+				) }
+
 			</div>
 
 			{ /* ── Right: QR preview (sticky) ── */ }
@@ -474,6 +534,34 @@ export default function QREdit() {
 				/>
 			</div>
 
+		</div>
+	);
+}
+
+/** Horizontal bar chart for scans by hour of day (0–23). */
+function HourChart( { data } ) {
+	const filled = Array.from( { length: 24 }, ( _, h ) => {
+		const found = data.find( d => Number( d.hour ) === h );
+		return { hour: h, scans: found ? Number( found.scans ) : 0 };
+	} );
+	const max = Math.max( ...filled.map( d => d.scans ), 1 );
+
+	return (
+		<div className="qrjump-hour-chart">
+			{ filled.map( ( { hour, scans } ) => (
+				<div key={ hour } className="qrjump-hour-chart__row">
+					<span className="qrjump-hour-chart__label">
+						{ String( hour ).padStart( 2, '0' ) }:00
+					</span>
+					<div className="qrjump-hour-chart__bar-wrap">
+						<div
+							className="qrjump-hour-chart__bar"
+							style={ { width: scans ? `${ ( scans / max ) * 100 }%` : '0%' } }
+						/>
+					</div>
+					<span className="qrjump-hour-chart__count">{ scans || '' }</span>
+				</div>
+			) ) }
 		</div>
 	);
 }

@@ -285,13 +285,7 @@ export default function QRList() {
 											</a>
 										</td>
 										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
-											<span
-												style={ { cursor: 'pointer', color: 'var(--qrjump-accent)' } }
-												onClick={ e => { e.stopPropagation(); navigate( `/codes/${ code.id }/stats` ); } }
-												title="View stats"
-											>
-												{ Number( code.total_scans ).toLocaleString() }
-											</span>
+											{ Number( code.total_scans ).toLocaleString() }
 										</td>
 										<td>
 											<span className={ `qrjump-badge qrjump-badge--${ code.status ? 'active' : 'inactive' }` }>
