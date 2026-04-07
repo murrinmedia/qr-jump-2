@@ -1,0 +1,15 @@
+{
+    "name": "qr-jump/qr-jump",
+    "description": "QR Jump WordPress Plugin",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4",
+        "endroid/qr-code": "^4.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "vendor-dir": "vendor"
+    }
+}

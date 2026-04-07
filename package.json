@@ -1,0 +1,18 @@
+{
+    "name": "qr-jump",
+    "version": "1.0.0",
+    "description": "QR Jump WordPress Plugin — React admin UI",
+    "private": true,
+    "scripts": {
+        "build": "wp-scripts build",
+        "start": "wp-scripts start",
+        "lint:js": "wp-scripts lint-js",
+        "packages-update": "wp-scripts packages-update"
+    },
+    "dependencies": {
+        "react-router-dom": "^6.0.0"
+    },
+    "devDependencies": {
+        "@wordpress/scripts": "^27.0.0"
+    }
+}

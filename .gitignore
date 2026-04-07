@@ -1,0 +1,16 @@
+# Composer dependencies — run `composer install` to restore
+/vendor/
+
+# Node dependencies — run `npm install` to restore
+/node_modules/
+
+# Compiled React assets — run `npm run build` to restore
+/build/
+
+# OS / editor artefacts
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.swp
