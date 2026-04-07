@@ -40,6 +40,12 @@ final class Plugin {
 	 * Register all hooks.
 	 */
 	private function init(): void {
+		// Register cache exclusions with every major caching plugin so that
+		// short URLs are never served from cache.  Must run before caching
+		// plugins initialise (plugins_loaded priority 1 in the main file, but
+		// the filters themselves fire lazily so adding them here is fine).
+		$this->register_cache_exclusions();
+
 		// Run DB upgrade check on every request (cheap version_compare).
 		add_action( 'init', array( 'QRJump\\Installer', 'maybe_upgrade' ) );
 
@@ -60,6 +66,88 @@ final class Plugin {
 
 		// Scheduled tasks and async notifications.
 		( new Report_Scheduler() )->register_hooks();
+	}
+
+	/**
+	 * Tell every major caching plugin not to cache our short URLs.
+	 *
+	 * Each caching plugin exposes its own filter/constant.  We register with
+	 * all of them so the plugin works out-of-the-box regardless of which
+	 * caching plugin the site uses — no manual exclusions needed.
+	 */
+	private function register_cache_exclusions(): void {
+		// Build the pattern once; re-used in every filter below.
+		$get_pattern = static function (): string {
+			$prefix = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
+			return '/' . $prefix . '/';
+		};
+
+		// ── FlyingPress ──────────────────────────────────────────────────────
+		add_filter(
+			'flying_press_exclude_urls',
+			static function ( $urls ) use ( $get_pattern ) {
+				$urls[] = $get_pattern();
+				return $urls;
+			}
+		);
+
+		// ── WP Rocket ────────────────────────────────────────────────────────
+		add_filter(
+			'rocket_cache_reject_uri',
+			static function ( $uris ) use ( $get_pattern ) {
+				$uris[] = $get_pattern() . '(.*)';
+				return $uris;
+			}
+		);
+
+		// ── LiteSpeed Cache ───────────────────────────────────────────────────
+		add_filter(
+			'litespeed_cache_exception',
+			static function ( $list ) use ( $get_pattern ) {
+				$list[] = $get_pattern();
+				return $list;
+			}
+		);
+
+		// ── W3 Total Cache ────────────────────────────────────────────────────
+		add_filter(
+			'w3tc_cache_reject_uri',
+			static function ( $uris ) use ( $get_pattern ) {
+				$uris[] = $get_pattern() . '.*';
+				return $uris;
+			}
+		);
+
+		// ── WP Super Cache ────────────────────────────────────────────────────
+		add_filter(
+			'wpsc_rejected_urls',
+			static function ( $urls ) use ( $get_pattern ) {
+				$urls[] = $get_pattern();
+				return $urls;
+			}
+		);
+
+		// ── Swift Performance ─────────────────────────────────────────────────
+		add_filter(
+			'swp_cache_exclude',
+			static function ( $urls ) use ( $get_pattern ) {
+				$urls[] = $get_pattern();
+				return $urls;
+			}
+		);
+
+		// ── Define DONOTCACHEPAGE constant if this request is a short URL.
+		// Works as a fallback signal for any caching plugin that checks it.
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		$prefix      = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
+		if ( $prefix && false !== strpos( $request_uri, '/' . $prefix . '/' ) ) {
+			if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+				define( 'DONOTCACHEPAGE', true );
+			}
+			if ( ! defined( 'DONOTCACHEOBJECT' ) ) {
+				define( 'DONOTCACHEOBJECT', true );
+			}
+		}
 	}
 
 	/**
