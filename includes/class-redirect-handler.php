@@ -86,8 +86,16 @@ class Redirect_Handler {
 		// Collect scan data before we send headers.
 		$scan_data = $this->build_scan_data( (int) $code->id );
 
-		// Send redirect headers — does NOT exit.
-		wp_redirect( $destination, (int) $code->redirect_type );
+		// Send redirect headers directly — wp_redirect() calls wp_sanitize_redirect()
+		// which runs esc_url_raw() and strips colons from URL paths, breaking
+		// URLs like /filter/tax/days-of-week:63/ used by JetEngine.
+		// We've already validated scheme + host in safe_destination(), so it's
+		// safe to send the Location header ourselves.
+		$status = (int) $code->redirect_type;
+		if ( ! headers_sent() ) {
+			status_header( $status );
+			header( 'Location: ' . $destination, true, $status );
+		}
 
 		// Flush the response to the client immediately if running under
 		// FastCGI/PHP-FPM so the scan logging is invisible to the user.
