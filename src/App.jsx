@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import QRList from './pages/QRList';
 import QREdit from './pages/QREdit';
+import QRStats from './pages/QRStats';
 import Settings from './pages/Settings';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
 				<Route path="/codes"            element={ <QRList /> } />
 				<Route path="/codes/new"        element={ <QREdit /> } />
 				<Route path="/codes/:id/edit"   element={ <QREdit /> } />
+				<Route path="/codes/:id/stats"  element={ <QRStats /> } />
 				<Route path="/settings"         element={ <Settings /> } />
 				{ /* Fallback — redirect unknown paths to the dashboard. */ }
 				<Route path="*" element={ <Navigate to="/" replace /> } />

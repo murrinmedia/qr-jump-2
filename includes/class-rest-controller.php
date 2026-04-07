@@ -169,6 +169,54 @@ class REST_Controller {
 			)
 		);
 
+		// Reset scan history for one code.
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/codes/(?P<id>[\d]+)/scans',
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => array( $this, 'reset_code_scans' ),
+				'permission_callback' => array( $this, 'admin_permissions' ),
+			)
+		);
+
+		// Duplicate a code.
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/codes/(?P<id>[\d]+)/duplicate',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'duplicate_code' ),
+				'permission_callback' => array( $this, 'admin_permissions' ),
+			)
+		);
+
+		// Bulk actions (delete / activate / deactivate).
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/codes/bulk',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'bulk_action' ),
+				'permission_callback' => array( $this, 'admin_permissions' ),
+				'args'                => array(
+					'action' => array(
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+						'validate_callback' => static function ( $v ): bool {
+							return in_array( $v, array( 'delete', 'activate', 'deactivate' ), true );
+						},
+					),
+					'ids' => array(
+						'required'          => true,
+						'validate_callback' => static function ( $v ): bool {
+							return is_array( $v ) && count( $v ) > 0;
+						},
+					),
+				),
+			)
+		);
+
 		// Dashboard aggregate data.
 		register_rest_route(
 			self::REST_NAMESPACE,
@@ -614,6 +662,148 @@ class REST_Controller {
 	}
 
 	// =========================================================================
+	// Codes — reset scans
+	// =========================================================================
+
+	/**
+	 * DELETE /codes/{id}/scans
+	 *
+	 * Deletes all scan records for a code without deleting the code itself.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function reset_code_scans( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$codes_table = $wpdb->prefix . 'qrjump_codes';
+		$scans_table = $wpdb->prefix . 'qrjump_scans';
+		$id          = absint( $request->get_param( 'id' ) );
+
+		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$codes_table} WHERE id = %d", $id ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		if ( ! $exists ) {
+			return new \WP_Error( 'qrjump_not_found', __( 'QR code not found.', 'qr-jump' ), array( 'status' => 404 ) );
+		}
+
+		$wpdb->delete( $scans_table, array( 'qr_code_id' => $id ), array( '%d' ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		return rest_ensure_response( array( 'reset' => true, 'id' => $id ) );
+	}
+
+	// =========================================================================
+	// Codes — duplicate
+	// =========================================================================
+
+	/**
+	 * POST /codes/{id}/duplicate
+	 *
+	 * Creates a copy of the code with a new auto-generated slug.
+	 * Scan history is NOT copied.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function duplicate_code( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$codes_table = $wpdb->prefix . 'qrjump_codes';
+		$id          = absint( $request->get_param( 'id' ) );
+
+		$original = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$codes_table} WHERE id = %d", $id ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		if ( ! $original ) {
+			return new \WP_Error( 'qrjump_not_found', __( 'QR code not found.', 'qr-jump' ), array( 'status' => 404 ) );
+		}
+
+		$now  = current_time( 'mysql', true );
+		$data = array(
+			'title'           => $original->title ? $original->title . ' (copy)' : '',
+			'slug'            => $this->generate_slug(),
+			'destination_url' => $original->destination_url,
+			'status'          => (int) $original->status,
+			'redirect_type'   => (int) $original->redirect_type,
+			'fg_colour'       => $original->fg_colour,
+			'bg_colour'       => $original->bg_colour,
+			'notes'           => $original->notes ?? '',
+			'settings'        => $original->settings,
+			'created_at'      => $now,
+			'updated_at'      => $now,
+		);
+
+		$inserted = $wpdb->insert( $codes_table, $data );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		if ( false === $inserted ) {
+			return new \WP_Error( 'qrjump_db_error', __( 'Failed to duplicate QR code.', 'qr-jump' ), array( 'status' => 500 ) );
+		}
+
+		$new_id = (int) $wpdb->insert_id;
+		$code   = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$codes_table} WHERE id = %d", $new_id ) );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		Cache_Purger::purge_url( $code->slug );
+
+		return rest_ensure_response( $this->prepare_code( $code ) );
+	}
+
+	// =========================================================================
+	// Codes — bulk actions
+	// =========================================================================
+
+	/**
+	 * POST /codes/bulk
+	 *
+	 * Performs a bulk action on multiple codes.
+	 * action: 'delete' | 'activate' | 'deactivate'
+	 * ids:    array of integer code IDs
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function bulk_action( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$codes_table = $wpdb->prefix . 'qrjump_codes';
+		$scans_table = $wpdb->prefix . 'qrjump_scans';
+		$action      = sanitize_text_field( (string) $request->get_param( 'action' ) );
+		$ids         = array_map( 'absint', (array) $request->get_param( 'ids' ) );
+		$ids         = array_filter( $ids );
+
+		if ( empty( $ids ) ) {
+			return new \WP_Error( 'qrjump_invalid', __( 'No valid IDs provided.', 'qr-jump' ), array( 'status' => 400 ) );
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+		if ( 'delete' === $action ) {
+			// Fetch slugs for cache purging before deletion.
+			$slugs = $wpdb->get_col(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare( "SELECT slug FROM {$codes_table} WHERE id IN ({$placeholders})", ...$ids )
+			);
+
+			$wpdb->query(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare( "DELETE FROM {$scans_table} WHERE qr_code_id IN ({$placeholders})", ...$ids )
+			);
+			$wpdb->query(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare( "DELETE FROM {$codes_table} WHERE id IN ({$placeholders})", ...$ids )
+			);
+
+			foreach ( $slugs as $slug ) {
+				Cache_Purger::purge_url( $slug );
+			}
+		} elseif ( 'activate' === $action ) {
+			$wpdb->query(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare( "UPDATE {$codes_table} SET status = 1, updated_at = %s WHERE id IN ({$placeholders})", current_time( 'mysql', true ), ...$ids )
+			);
+		} elseif ( 'deactivate' === $action ) {
+			$wpdb->query(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare( "UPDATE {$codes_table} SET status = 0, updated_at = %s WHERE id IN ({$placeholders})", current_time( 'mysql', true ), ...$ids )
+			);
+		}
+
+		return rest_ensure_response( array( 'action' => $action, 'ids' => $ids, 'count' => count( $ids ) ) );
+	}
+
+	// =========================================================================
 	// Codes — stats
 	// =========================================================================
 
@@ -665,6 +855,30 @@ class REST_Controller {
 			)
 		);
 
+		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT HOUR(scanned_at) AS hour, COUNT(*) AS scans
+				 FROM {$scans_table}
+				 WHERE qr_code_id = %d AND scanned_at >= %s
+				 GROUP BY HOUR(scanned_at)
+				 ORDER BY hour ASC",
+				$id,
+				$since
+			)
+		);
+
+		$referrers = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT referrer, COUNT(*) AS scans
+				 FROM {$scans_table}
+				 WHERE qr_code_id = %d AND referrer != ''
+				 GROUP BY referrer
+				 ORDER BY scans DESC
+				 LIMIT 10",
+				$id
+			)
+		);
+
 		return rest_ensure_response(
 			array(
 				'total'           => (int) ( $totals->total ?? 0 ),
@@ -672,6 +886,8 @@ class REST_Controller {
 				'repeat_scans'    => (int) ( $totals->repeat_scans ?? 0 ),
 				'last_scanned_at' => $totals->last_scanned_at ?? null,
 				'daily'           => $daily ?? array(),
+				'hourly'          => $hourly ?? array(),
+				'referrers'       => $referrers ?? array(),
 			)
 		);
 	}

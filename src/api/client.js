@@ -107,6 +107,18 @@ export const api = {
 		/** @param {number} id */
 		stats: ( id ) => get( `/codes/${ id }/stats` ).then( r => r.data ),
 
+		/** @param {number} id */
+		resetScans: ( id ) => del( `/codes/${ id }/scans` ),
+
+		/** @param {number} id */
+		duplicate: ( id ) => post( `/codes/${ id }/duplicate` ),
+
+		/**
+		 * @param {'delete'|'activate'|'deactivate'} action
+		 * @param {number[]} ids
+		 */
+		bulk: ( action, ids ) => post( '/codes/bulk', { action, ids } ),
+
 		/**
 		 * Signed URL for the QR image of a saved code.
 		 * Safe to use as <img src> or <a href download>.

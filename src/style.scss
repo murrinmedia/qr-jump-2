@@ -929,6 +929,92 @@
 		}
 	}
 
+	// ─── Bulk action bar ──────────────────────────────────────────────────────
+
+	.qrjump-bulk-bar {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 14px;
+		background: var(--qrjump-accent-light);
+		border: 1px solid rgba(34, 113, 177, 0.2);
+		border-radius: var(--qrjump-radius-sm);
+		margin-bottom: 12px;
+
+		&__count {
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--qrjump-accent);
+			flex-shrink: 0;
+		}
+
+		// Compact the WP SelectControl inside the bar.
+		.components-base-control { margin: 0; }
+		.components-select-control__input { height: 32px; }
+	}
+
+	// ─── Selected table row ───────────────────────────────────────────────────
+
+	.qrjump-table__row--selected td {
+		background: var(--qrjump-accent-light) !important;
+	}
+
+	// ─── Edit stat actions cell ───────────────────────────────────────────────
+
+	.qrjump-edit-stat--actions {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 6px;
+		flex-shrink: 0;
+	}
+
+	// ─── Hour-of-day chart ────────────────────────────────────────────────────
+
+	.qrjump-hour-chart {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+
+		&__row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-size: 11px;
+		}
+
+		&__label {
+			width: 40px;
+			flex-shrink: 0;
+			color: var(--qrjump-text-muted);
+			font-family: monospace;
+		}
+
+		&__bar-wrap {
+			flex: 1;
+			height: 12px;
+			background: var(--qrjump-border-light);
+			border-radius: 3px;
+			overflow: hidden;
+		}
+
+		&__bar {
+			height: 100%;
+			background: var(--qrjump-accent);
+			border-radius: 3px;
+			opacity: 0.8;
+			transition: width 0.3s ease;
+			min-width: 2px;
+		}
+
+		&__count {
+			width: 28px;
+			text-align: right;
+			color: var(--qrjump-text-muted);
+			font-variant-numeric: tabular-nums;
+		}
+	}
+
 	// ─── Standalone label ─────────────────────────────────────────────────────
 
 	.qrjump-label {

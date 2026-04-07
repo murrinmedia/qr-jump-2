@@ -196,6 +196,27 @@ export default function QREdit() {
 								}
 							</span>
 						</div>
+						<div className="qrjump-edit-stat qrjump-edit-stat--actions">
+							<Button
+								variant="secondary"
+								size="small"
+								onClick={ () => navigate( `/codes/${ id }/stats` ) }
+							>
+								View stats
+							</Button>
+							<Button
+								variant="tertiary"
+								size="small"
+								isDestructive
+								onClick={ async () => {
+									if ( ! window.confirm( 'Reset all scan data for this code? This cannot be undone.' ) ) return;
+									await api.codes.resetScans( Number( id ) );
+									setStats( { total: 0, unique: 0, repeat: 0, last_scanned: null } );
+								} }
+							>
+								Reset stats
+							</Button>
+						</div>
 					</div>
 				) }
 
