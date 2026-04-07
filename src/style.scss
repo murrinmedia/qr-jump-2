@@ -1,6 +1,15 @@
 // ─── QR Jump Admin UI ─────────────────────────────────────────────────────────
 // All rules scoped under #qrjump-app to prevent conflicts with WP admin styles.
 
+// Remove WordPress admin page gutters so our sidebar butts up against the WP
+// navigation with no gap.
+#wpbody-content:has(#qrjump-app) {
+	padding: 0 !important;
+}
+#wpbody:has(#qrjump-app) {
+	padding-top: 0 !important;
+}
+
 #qrjump-app {
 
 	// ─── Design tokens ────────────────────────────────────────────────────────
@@ -928,6 +937,20 @@
 		font-weight: 600;
 		color: var(--qrjump-text);
 		margin-bottom: 6px;
+	}
+
+	// ─── Short URL example (Settings page) ───────────────────────────────────
+
+	.qrjump-short-url-example {
+		font-size: 13px;
+		font-family: monospace;
+		background: #f6f7f7;
+		border: 1px solid var(--qrjump-border);
+		border-radius: var(--qrjump-radius-sm);
+		padding: 8px 12px;
+		margin: 0 0 8px;
+		word-break: break-all;
+		color: var(--qrjump-text);
 	}
 
 	// ─── Short URL preview (below slug input) ─────────────────────────────────

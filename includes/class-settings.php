@@ -22,7 +22,7 @@ class Settings {
 	 * @var array<string, mixed>
 	 */
 	private static $defaults = array(
-		'redirect_prefix'           => 'go',         // URL segment: example.com/go/<slug>
+		'redirect_prefix'           => 'qr',          // URL segment: example.com/qr/<slug>
 		'disabled_behavior'         => '404',         // '404' | 'message'
 		'disabled_message'          => 'This QR code is no longer active.',
 		'report_schedule'           => 'none',        // 'none' | 'daily' | 'weekly' | 'monthly'

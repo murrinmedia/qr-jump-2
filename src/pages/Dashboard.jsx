@@ -145,7 +145,7 @@ export default function Dashboard() {
 												style={ { cursor: 'pointer', color: 'var(--qrjump-accent)' } }
 												onClick={ () => navigate( `/codes/${ scan.qr_code_id }/edit` ) }
 											>
-												{ scan.code_title || scan.slug || `#${ scan.qr_code_id }` }
+												{ scan.code_title || scan.slug || `Code #${ scan.qr_code_id }` }
 											</span>
 										</td>
 										<td>

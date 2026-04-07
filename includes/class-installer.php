@@ -106,5 +106,13 @@ CREATE TABLE {$scans_table} (
 			self::create_tables();
 			update_option( 'qrjump_db_version', QRJUMP_DB_VERSION, false );
 		}
+
+		// One-time migration: rename the default prefix from 'go' → 'qr'.
+		// Only resets if the value is still exactly 'go' (the old default),
+		// so any site that intentionally set it to 'go' and then saved Settings
+		// won't be affected (they would have saved it explicitly).
+		if ( 'go' === get_option( 'qrjump_redirect_prefix', '' ) ) {
+			update_option( 'qrjump_redirect_prefix', 'qr', false );
+		}
 	}
 }

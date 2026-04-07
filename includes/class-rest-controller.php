@@ -797,16 +797,19 @@ class REST_Controller {
 		$active_codes = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$codes_table} WHERE status = 1" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		$top_codes = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT c.id, c.title, c.slug, COUNT(s.id) AS scan_count
+			"SELECT c.id, c.title, c.slug,
+			        COUNT(s.id) AS total_scans,
+			        SUM(s.scan_type = 'unique') AS unique_scans
 			 FROM {$scans_table} s
 			 JOIN {$codes_table} c ON c.id = s.qr_code_id
 			 GROUP BY s.qr_code_id
-			 ORDER BY scan_count DESC
+			 ORDER BY total_scans DESC
 			 LIMIT 5"
 		);
 
 		$recent_scans = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT s.scanned_at, s.scan_type, c.id, c.title, c.slug
+			"SELECT s.qr_code_id, s.scanned_at, s.scan_type,
+			        c.title AS code_title, c.slug
 			 FROM {$scans_table} s
 			 JOIN {$codes_table} c ON c.id = s.qr_code_id
 			 ORDER BY s.scanned_at DESC

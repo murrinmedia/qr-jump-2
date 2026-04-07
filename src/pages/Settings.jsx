@@ -88,17 +88,16 @@ export default function Settings() {
 						<h2 className="qrjump-form-section__title">Redirect</h2>
 					</div>
 					<div className="qrjump-form-section__body">
-						<div className="qrjump-form-row">
-							<TextControl
-								label="URL prefix"
-								value={ settings.redirect_prefix }
-								onChange={ val =>
-									setField( 'redirect_prefix', val.toLowerCase().replace( /[^a-z0-9-]/g, '' ) )
-								}
-								help={ `Short URLs will look like: ${ homeUrl }/${ prefix }/<slug>` }
-								__nextHasNoMarginBottom
-							/>
-						</div>
+						<p className="qrjump-help-text">
+							Your QR codes use short URLs in the format:
+						</p>
+						<p className="qrjump-short-url-example">
+							{ homeUrl }/<strong>{ prefix }</strong>/&lt;slug&gt;
+						</p>
+						<p className="qrjump-help-text" style={ { marginTop: 8 } }>
+							The URL prefix is fixed at <strong>{ prefix }</strong> to prevent existing
+							printed QR codes from breaking if it were changed.
+						</p>
 					</div>
 				</div>
 

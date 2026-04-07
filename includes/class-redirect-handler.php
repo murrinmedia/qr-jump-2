@@ -29,11 +29,27 @@ class Redirect_Handler {
 	 * @param \WP $wp Current WordPress environment instance.
 	 */
 	public function handle( \WP $wp ): void {
-		$prefix  = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
-		$request = trim( (string) $wp->request, '/' );
+		$prefix = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
+		if ( '' === $prefix ) {
+			return;
+		}
+
+		// Use REQUEST_URI directly — more reliable than $wp->request which can
+		// be empty or incorrect when no rewrite rule matches the path.
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		list( $request_path ) = explode( '?', $request_uri, 2 );
+
+		// Strip home path prefix for subdirectory installs (e.g. /mysite/go/abc).
+		$home_path = (string) parse_url( home_url(), PHP_URL_PATH );
+		$home_path = rtrim( $home_path, '/' );
+		if ( $home_path && 0 === strpos( $request_path, $home_path . '/' ) ) {
+			$request_path = substr( $request_path, strlen( $home_path ) );
+		}
+
+		$request = trim( $request_path, '/' );
 
 		// Must start with "<prefix>/".
-		if ( '' === $prefix || 0 !== strpos( $request, $prefix . '/' ) ) {
+		if ( 0 !== strpos( $request, $prefix . '/' ) ) {
 			return;
 		}
 
@@ -140,13 +156,20 @@ class Redirect_Handler {
 	 * @return string|null
 	 */
 	private function safe_destination( string $url ): ?string {
-		$validated = wp_http_validate_url( $url );
-		if ( ! $validated ) {
+		$url = trim( $url );
+		if ( '' === $url ) {
 			return null;
 		}
 
-		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
-		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+		$scheme = (string) wp_parse_url( $url, PHP_URL_SCHEME );
+		if ( ! in_array( strtolower( $scheme ), array( 'http', 'https' ), true ) ) {
+			return null;
+		}
+
+		// Guard against redirect loops: destination must not be our own short-URL prefix.
+		$prefix    = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
+		$short_base = rtrim( home_url(), '/' ) . '/' . $prefix . '/';
+		if ( 0 === strpos( $url, $short_base ) ) {
 			return null;
 		}
 

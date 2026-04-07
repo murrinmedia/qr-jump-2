@@ -27,6 +27,15 @@ if ( file_exists( QRJUMP_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once QRJUMP_PLUGIN_DIR . 'vendor/autoload.php';
 }
 
+// GitHub update checker — allows WordPress to pull updates from GitHub releases.
+if ( class_exists( 'YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
+	\YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/murrinmedia/qr-jump-2/',
+		__FILE__,
+		'qr-jump'
+	);
+}
+
 /**
  * PSR-4-style autoloader for plugin classes.
  *

@@ -234,25 +234,44 @@ export default function QREdit() {
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
 							<h2 className="qrjump-form-section__title">Short URL</h2>
-							<ToggleControl
-								label="Set slug manually"
-								checked={ slugManual }
-								onChange={ val => {
-									setSlugManual( val );
-									if ( ! val ) setField( 'slug', '' );
-								} }
-								__nextHasNoMarginBottom
-							/>
+							{ isNew && (
+								<ToggleControl
+									label="Set slug manually"
+									checked={ slugManual }
+									onChange={ val => {
+										setSlugManual( val );
+										if ( ! val ) setField( 'slug', '' );
+									} }
+									__nextHasNoMarginBottom
+								/>
+							) }
 						</div>
 						<div className="qrjump-form-section__body">
-							{ slugManual ? (
+							{ ! isNew ? (
+								// Editing: slug is locked — changing it would break printed QR codes.
+								<>
+									<p className="qrjump-help-text">
+										The slug is permanent and cannot be changed after creation.
+										Changing it would break any printed QR codes pointing to this URL.
+									</p>
+									{ shortUrl && (
+										<p className="qrjump-short-url-preview">
+											<span className="qrjump-short-url-preview__label">Short URL:</span>
+											{ ' ' }
+											<a href={ shortUrl } target="_blank" rel="noreferrer">
+												{ shortUrl }
+											</a>
+										</p>
+									) }
+								</>
+							) : slugManual ? (
 								<>
 									<div className="qrjump-form-row">
 										<label className="qrjump-label">Slug</label>
 										<SlugInput
 											value={ form.slug }
 											onChange={ val => setField( 'slug', val ) }
-											excludeId={ isNew ? 0 : Number( id ) }
+											excludeId={ 0 }
 										/>
 									</div>
 									{ shortUrl && (
