@@ -217,19 +217,29 @@ class Redirect_Handler {
 			return null;
 		}
 
+		// Validate scheme — must be http or https.
+		// Do NOT pass through esc_url_raw(): it strips colons from URL paths,
+		// breaking URLs like /filter/tax/days-of-week:63/ used by JetEngine
+		// and similar plugins that encode terms with colons in the path.
 		$scheme = (string) wp_parse_url( $url, PHP_URL_SCHEME );
 		if ( ! in_array( strtolower( $scheme ), array( 'http', 'https' ), true ) ) {
 			return null;
 		}
 
-		// Guard against redirect loops: destination must not be our own short-URL prefix.
-		$prefix    = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
+		// Must have a host.
+		if ( empty( wp_parse_url( $url, PHP_URL_HOST ) ) ) {
+			return null;
+		}
+
+		// Guard against redirect loops.
+		$prefix     = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
 		$short_base = rtrim( home_url(), '/' ) . '/' . $prefix . '/';
 		if ( 0 === strpos( $url, $short_base ) ) {
 			return null;
 		}
 
-		return esc_url_raw( $url );
+		// Return as-is — the URL came from our own DB and was validated on save.
+		return $url;
 	}
 
 	/**

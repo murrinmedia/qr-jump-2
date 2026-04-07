@@ -144,7 +144,7 @@ class REST_Controller {
 				'args'                => array(
 					'url' => array(
 						'required'          => true,
-						'sanitize_callback' => 'esc_url_raw',
+						'sanitize_callback' => 'trim',
 					),
 					'format' => array(
 						'default'           => 'png',
@@ -351,7 +351,7 @@ class REST_Controller {
 		global $wpdb;
 
 		$codes_table     = $wpdb->prefix . 'qrjump_codes';
-		$destination_url = esc_url_raw( (string) $request->get_param( 'destination_url' ) );
+		$destination_url = $this->sanitize_destination( (string) $request->get_param( 'destination_url' ) );
 
 		if ( ! $this->is_valid_destination( $destination_url ) ) {
 			return new \WP_Error(
@@ -494,7 +494,7 @@ class REST_Controller {
 		}
 
 		if ( $request->has_param( 'destination_url' ) ) {
-			$url = esc_url_raw( (string) $request->get_param( 'destination_url' ) );
+			$url = $this->sanitize_destination( (string) $request->get_param( 'destination_url' ) );
 			if ( ! $this->is_valid_destination( $url ) ) {
 				return new \WP_Error(
 					'qrjump_invalid_url',
@@ -1064,17 +1064,31 @@ class REST_Controller {
 	}
 
 	/**
-	 * Validate a destination URL: must be absolute http/https only.
+	 * Validate a destination URL: must be absolute http/https with a host.
 	 *
 	 * @param string $url
 	 * @return bool
 	 */
 	private function is_valid_destination( string $url ): bool {
-		if ( ! wp_http_validate_url( $url ) ) {
-			return false;
-		}
-		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
-		return in_array( $scheme, array( 'http', 'https' ), true );
+		$url    = trim( $url );
+		$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
+		$host   = wp_parse_url( $url, PHP_URL_HOST );
+		return in_array( $scheme, array( 'http', 'https' ), true ) && ! empty( $host );
+	}
+
+	/**
+	 * Sanitize a destination URL for storage.
+	 *
+	 * We deliberately do NOT use esc_url_raw() here because it strips colons
+	 * from URL paths, breaking URLs like /filter/tax/days-of-week:63/ that
+	 * JetEngine and similar plugins generate.  The URL is validated separately
+	 * by is_valid_destination() before this is called.
+	 *
+	 * @param string $url
+	 * @return string
+	 */
+	private function sanitize_destination( string $url ): string {
+		return trim( $url );
 	}
 
 	/**
@@ -1142,7 +1156,7 @@ class REST_Controller {
 	private function code_args( bool $required ): array {
 		return array(
 			'title'           => array( 'required' => $required,  'sanitize_callback' => 'sanitize_text_field' ),
-			'destination_url' => array( 'required' => $required,  'sanitize_callback' => 'esc_url_raw' ),
+			'destination_url' => array( 'required' => $required,  'sanitize_callback' => 'trim' ),
 			'slug'            => array( 'required' => false,      'sanitize_callback' => 'sanitize_text_field' ),
 			'status'          => array( 'default'  => 1,          'sanitize_callback' => 'absint' ),
 			'redirect_type'   => array( 'default'  => 302,        'sanitize_callback' => 'absint' ),
