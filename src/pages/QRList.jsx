@@ -13,7 +13,6 @@ import { Button, Spinner, SelectControl } from '@wordpress/components';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Pagination from '../components/Pagination';
-import CopyButton from '../components/CopyButton';
 
 const PER_PAGE = 20;
 
@@ -35,8 +34,6 @@ export default function QRList() {
 	const [ bulkAction,  setBulkAction  ] = useState( '' );
 	const [ bulkWorking, setBulkWorking ] = useState( false );
 
-	const prefix  = window.qrJumpData?.redirectPrefix || 'qr';
-	const homeUrl = ( window.qrJumpData?.homeUrl || '' ).replace( /\/$/, '' );
 
 	const fetchCodes = useCallback( () => {
 		setLoading( true );
@@ -243,9 +240,11 @@ export default function QRList() {
 									/>
 								</th>
 								<SortHeader col="title"      label="Title"    current={ orderby } dir={ order } onSort={ handleSort } />
-								<th>Short URL</th>
 								<th>Destination</th>
-								<SortHeader col="total_scans" label="Scans"   current={ orderby } dir={ order } onSort={ handleSort } />
+								<th style={ { textAlign: 'right' } }>Today</th>
+								<th style={ { textAlign: 'right' } }>Week</th>
+								<th style={ { textAlign: 'right' } }>Month</th>
+								<th style={ { textAlign: 'right' } }>Last 30</th>
 								<SortHeader col="status"      label="Status"  current={ orderby } dir={ order } onSort={ handleSort } />
 								<SortHeader col="created_at"  label="Created" current={ orderby } dir={ order } onSort={ handleSort } />
 								<th>Actions</th>
@@ -253,7 +252,6 @@ export default function QRList() {
 						</thead>
 						<tbody>
 							{ codes.map( code => {
-								const shortUrl = `${ homeUrl }/${ prefix }/${ code.slug }`;
 								return (
 									<tr
 										key={ code.id }
@@ -275,17 +273,22 @@ export default function QRList() {
 												{ code.slug }
 											</span>
 										</td>
-										<td style={ { whiteSpace: 'nowrap' } } onClick={ e => e.stopPropagation() }>
-											<span style={ { fontSize: 12, marginRight: 6 } }>{ shortUrl }</span>
-											<CopyButton text={ shortUrl } label="Copy" />
-										</td>
 										<td className="qrjump-table__destination" onClick={ e => e.stopPropagation() }>
 											<a href={ code.destination_url } target="_blank" rel="noreferrer" title={ code.destination_url }>
 												{ code.destination_url }
 											</a>
 										</td>
 										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
-											{ Number( code.total_scans ).toLocaleString() }
+											{ Number( code.scans_today ).toLocaleString() }
+										</td>
+										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
+											{ Number( code.scans_week ).toLocaleString() }
+										</td>
+										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
+											{ Number( code.scans_month ).toLocaleString() }
+										</td>
+										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
+											{ Number( code.scans_30d ).toLocaleString() }
 										</td>
 										<td>
 											<span className={ `qrjump-badge qrjump-badge--${ code.status ? 'active' : 'inactive' }` }>

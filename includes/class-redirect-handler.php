@@ -77,6 +77,42 @@ class Redirect_Handler {
 			return; // handle_inactive may exit or fall through.
 		}
 
+		// Decode per-code settings once — used for schedule, limits, type, and notifications.
+		$code_settings = $code->settings
+			? (array) json_decode( $code->settings, true )
+			: array();
+
+		// ── Activation schedule ───────────────────────────────────────────────
+		$active_from  = trim( (string) ( $code_settings['active_from']  ?? '' ) );
+		$active_until = trim( (string) ( $code_settings['active_until'] ?? '' ) );
+		$now_local    = current_time( 'mysql' ); // WP local time (matches datetime-local inputs).
+
+		if ( '' !== $active_from && $now_local < $active_from ) {
+			$this->handle_unavailable( 'not_yet_active' );
+			return;
+		}
+		if ( '' !== $active_until && $now_local > $active_until ) {
+			$this->handle_unavailable( 'expired' );
+			return;
+		}
+
+		// ── Scan limit ────────────────────────────────────────────────────────
+		$max_scans = absint( $code_settings['max_scans'] ?? 0 );
+		if ( $max_scans > 0 && (int) $code->total_scans >= $max_scans ) {
+			$limit_message = ! empty( $code_settings['max_scans_message'] )
+				? $code_settings['max_scans_message']
+				: '';
+			$this->handle_unavailable( 'scan_limit', $limit_message );
+			return;
+		}
+
+		// ── vCard / direct content ────────────────────────────────────────────
+		if ( 'vcard' === ( $code_settings['destination_type'] ?? 'url' ) ) {
+			$this->serve_vcard( $code, $code_settings );
+			return; // serve_vcard() exits internally.
+		}
+
+		// ── Standard URL redirect ─────────────────────────────────────────────
 		$destination = $this->safe_destination( $code->destination_url );
 		if ( null === $destination ) {
 			// Destination URL is invalid — treat as a 404.
@@ -107,9 +143,6 @@ class Redirect_Handler {
 		Scan_Logger::log( $scan_data );
 
 		// Queue notification (deferred via WP-Cron, never blocks this process).
-		$code_settings = $code->settings
-			? (array) json_decode( $code->settings, true )
-			: array();
 		Notification_Manager::maybe_schedule( (int) $code->id, $code_settings );
 
 		exit;
@@ -183,9 +216,10 @@ class Redirect_Handler {
 
 		return $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT id, destination_url, status, redirect_type, settings
-				 FROM {$wpdb->prefix}qrjump_codes
-				 WHERE slug = %s
+				"SELECT c.id, c.destination_url, c.status, c.redirect_type, c.settings,
+				        ( SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = c.id ) AS total_scans
+				 FROM {$wpdb->prefix}qrjump_codes c
+				 WHERE c.slug = %s
 				 LIMIT 1",
 				$slug
 			)
@@ -211,6 +245,74 @@ class Redirect_Handler {
 
 		// 'fallthrough' is treated as 404 — return without exiting so WP
 		// continues and serves its own 404 response.
+	}
+
+	/**
+	 * Show an "unavailable" response for schedule or scan-limit violations.
+	 *
+	 * @param string $reason          'not_yet_active' | 'expired' | 'scan_limit'
+	 * @param string $custom_message  Optional per-code message override.
+	 */
+	private function handle_unavailable( string $reason, string $custom_message = '' ): void {
+		if ( '' !== $custom_message ) {
+			$message = $custom_message;
+		} else {
+			switch ( $reason ) {
+				case 'not_yet_active':
+					$message = __( 'This QR code is not yet active.', 'qr-jump' );
+					break;
+				case 'expired':
+					$message = __( 'This QR code has expired.', 'qr-jump' );
+					break;
+				default:
+					$message = __( 'This QR code has reached its scan limit.', 'qr-jump' );
+			}
+		}
+
+		wp_die(
+			esc_html( $message ),
+			esc_html__( 'QR Code Unavailable', 'qr-jump' ),
+			array( 'response' => 410 )
+		);
+	}
+
+	/**
+	 * Serve the stored vCard text directly as a downloadable .vcf file.
+	 *
+	 * The QR code still encodes the short URL so scans are tracked; the plugin
+	 * responds with the vCard content instead of doing a redirect.
+	 *
+	 * @param object               $code          DB row.
+	 * @param array<string, mixed> $code_settings Decoded settings.
+	 */
+	private function serve_vcard( object $code, array $code_settings ): void {
+		$content = trim( $code->destination_url );
+
+		if ( '' === $content ) {
+			// Nothing to serve — fall through to a 404.
+			return;
+		}
+
+		$scan_data = $this->build_scan_data( (int) $code->id );
+
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/vcard; charset=UTF-8' );
+			header( 'Content-Disposition: attachment; filename="contact.vcf"' );
+			header( 'Content-Length: ' . strlen( $content ) );
+			header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+		}
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $content;
+
+		if ( function_exists( 'fastcgi_finish_request' ) ) {
+			fastcgi_finish_request();
+		}
+
+		Scan_Logger::log( $scan_data );
+		Notification_Manager::maybe_schedule( (int) $code->id, $code_settings );
+
+		exit;
 	}
 
 	/**

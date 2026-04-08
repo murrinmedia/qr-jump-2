@@ -32,23 +32,38 @@ class Notification_Manager {
 			return;
 		}
 
-		$rate_limit_minutes = max(
-			1,
-			(int) ( $code_settings['notify_rate_limit_minutes'] ?? Settings::get( 'notify_rate_limit_minutes' ) )
-		);
+		$notify_every = max( 1, (int) ( $code_settings['notify_every_x_scans'] ?? 1 ) );
 
-		$transient_key = 'qrjump_notif_' . $qr_code_id;
+		if ( $notify_every > 1 ) {
+			// Count-based: only notify on every Nth scan.
+			global $wpdb;
+			$total = (int) $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = %d",
+					$qr_code_id
+				)
+			);
+			if ( $total % $notify_every !== 0 ) {
+				return;
+			}
+			// Count-based notifications bypass the time-based rate limit.
+		} else {
+			// Time-based rate limiting (default: notify on every scan, but
+			// throttle to at most once per N minutes).
+			$rate_limit_minutes = max(
+				1,
+				(int) ( $code_settings['notify_rate_limit_minutes'] ?? Settings::get( 'notify_rate_limit_minutes' ) )
+			);
 
-		// Transient present → within rate-limit window, skip.
-		if ( false !== get_transient( $transient_key ) ) {
-			return;
+			$transient_key = 'qrjump_notif_' . $qr_code_id;
+
+			if ( false !== get_transient( $transient_key ) ) {
+				return;
+			}
+
+			set_transient( $transient_key, 1, $rate_limit_minutes * MINUTE_IN_SECONDS );
 		}
 
-		// Set the rate-limit guard BEFORE scheduling to avoid race conditions
-		// on high-traffic sites where two requests arrive simultaneously.
-		set_transient( $transient_key, 1, $rate_limit_minutes * MINUTE_IN_SECONDS );
-
-		// Fire-and-forget: runs on the next WP-Cron execution.
 		wp_schedule_single_event( time(), 'qrjump_send_notification', array( $qr_code_id ) );
 	}
 
@@ -90,22 +105,23 @@ class Notification_Manager {
 			return;
 		}
 
-		$prefix    = (string) Settings::get( 'redirect_prefix' );
-		$short_url = home_url( '/' . $prefix . '/' . $code->slug );
-
 		/* translators: %s: QR code title */
-		$subject = sprintf( __( '[QR Jump] Scan detected: %s', 'qr-jump' ), $code->title );
+		$subject = sprintf( __( '[QR Jump] Scan detected: %s', 'qr-jump' ), $code->title ?: __( 'Untitled', 'qr-jump' ) );
 
-		$message = sprintf(
-			/* translators: 1: QR code title, 2: short URL, 3: destination URL, 4: admin URL */
-			__( "Your QR code \"%1\$s\" was just scanned.\n\nShort URL: %2\$s\nDestination: %3\$s\n\nManage your QR codes: %4\$s", 'qr-jump' ),
-			$code->title,
-			$short_url,
-			$code->destination_url,
-			admin_url( 'admin.php?page=qr-jump' )
-		);
+		$manage_url = admin_url( 'admin.php?page=qr-jump#/codes/' . $code->id . '/edit' );
+		$title_html = esc_html( $code->title ?: __( 'Untitled', 'qr-jump' ) );
+
+		$message = '<!DOCTYPE html>'
+			. '<html><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;'
+			. 'color:#1e1e1e;font-size:14px;line-height:1.6;max-width:480px;margin:0 auto;padding:24px;">'
+			. '<p>Your QR code <strong>' . $title_html . '</strong> was just scanned.</p>'
+			. '<p><a href="' . esc_url( $manage_url ) . '" '
+			. 'style="color:#2271b1;text-decoration:none;font-weight:500;">Manage this code</a></p>'
+			. '</body></html>';
+
+		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
 		// Errors are intentionally ignored — wp_mail returns false on failure.
-		wp_mail( $email, $subject, $message );
+		wp_mail( $email, $subject, $message, $headers );
 	}
 }

@@ -352,7 +352,14 @@ class REST_Controller {
 			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 			$scan_rows    = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->prepare(
-					"SELECT qr_code_id, COUNT(*) AS total, MAX(scanned_at) AS last_scanned_at
+					"SELECT
+					   qr_code_id,
+					   COUNT(*)                                                                           AS total,
+					   MAX(scanned_at)                                                                    AS last_scanned_at,
+					   SUM(CASE WHEN scanned_at >= CURDATE()                         THEN 1 ELSE 0 END)  AS scans_today,
+					   SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)  THEN 1 ELSE 0 END)  AS scans_week,
+					   SUM(CASE WHEN scanned_at >= DATE_FORMAT(NOW(), '%%Y-%%m-01') THEN 1 ELSE 0 END)  AS scans_month,
+					   SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)  AS scans_30d
 					 FROM {$scans_table}
 					 WHERE qr_code_id IN ({$placeholders})
 					 GROUP BY qr_code_id",
@@ -363,6 +370,10 @@ class REST_Controller {
 				$scan_counts[ (int) $row->qr_code_id ] = array(
 					'total'           => (int) $row->total,
 					'last_scanned_at' => $row->last_scanned_at,
+					'scans_today'     => (int) $row->scans_today,
+					'scans_week'      => (int) $row->scans_week,
+					'scans_month'     => (int) $row->scans_month,
+					'scans_30d'       => (int) $row->scans_30d,
 				);
 			}
 		}
@@ -373,6 +384,10 @@ class REST_Controller {
 				$id                      = (int) $code->id;
 				$item['total_scans']     = $scan_counts[ $id ]['total'] ?? 0;
 				$item['last_scanned_at'] = $scan_counts[ $id ]['last_scanned_at'] ?? null;
+				$item['scans_today']     = $scan_counts[ $id ]['scans_today'] ?? 0;
+				$item['scans_week']      = $scan_counts[ $id ]['scans_week']  ?? 0;
+				$item['scans_month']     = $scan_counts[ $id ]['scans_month'] ?? 0;
+				$item['scans_30d']       = $scan_counts[ $id ]['scans_30d']   ?? 0;
 				return $item;
 			},
 			$codes ?? array()
@@ -398,15 +413,23 @@ class REST_Controller {
 	public function create_code( \WP_REST_Request $request ) {
 		global $wpdb;
 
-		$codes_table     = $wpdb->prefix . 'qrjump_codes';
-		$destination_url = $this->sanitize_destination( (string) $request->get_param( 'destination_url' ) );
+		$codes_table  = $wpdb->prefix . 'qrjump_codes';
+		$raw_settings = (array) ( $request->get_param( 'settings' ) ?? array() );
+		$dest_type    = in_array( $raw_settings['destination_type'] ?? 'url', array( 'url', 'vcard' ), true )
+			? ( $raw_settings['destination_type'] ?? 'url' )
+			: 'url';
 
-		if ( ! $this->is_valid_destination( $destination_url ) ) {
-			return new \WP_Error(
-				'qrjump_invalid_url',
-				__( 'Destination URL must be a valid http or https URL.', 'qr-jump' ),
-				array( 'status' => 400 )
-			);
+		if ( 'vcard' === $dest_type ) {
+			$destination_url = sanitize_textarea_field( (string) $request->get_param( 'destination_url' ) );
+		} else {
+			$destination_url = $this->sanitize_destination( (string) $request->get_param( 'destination_url' ) );
+			if ( ! $this->is_valid_destination( $destination_url ) ) {
+				return new \WP_Error(
+					'qrjump_invalid_url',
+					__( 'Destination URL must be a valid http or https URL.', 'qr-jump' ),
+					array( 'status' => 400 )
+				);
+			}
 		}
 
 		// Slug handling.
@@ -431,7 +454,14 @@ class REST_Controller {
 			$slug = $this->generate_slug();
 		}
 
-		$now  = current_time( 'mysql', true );
+		$now              = current_time( 'mysql', true );
+		$cleaned_settings = $this->clean_code_settings( (array) ( $request->get_param( 'settings' ) ?? array() ) );
+
+		// In builder mode, generate destination_url from structured vcard_data server-side.
+		if ( 'vcard' === $cleaned_settings['destination_type'] && 'builder' === $cleaned_settings['vcard_mode'] ) {
+			$destination_url = VCard_Builder::generate( $cleaned_settings['vcard_data'] );
+		}
+
 		$data = array(
 			'title'           => sanitize_text_field( (string) $request->get_param( 'title' ) ),
 			'slug'            => $slug,
@@ -441,7 +471,7 @@ class REST_Controller {
 			'fg_colour'       => $this->clean_colour( (string) ( $request->get_param( 'fg_colour' ) ?? '#000000' ) ),
 			'bg_colour'       => $this->clean_colour( (string) ( $request->get_param( 'bg_colour' ) ?? '#ffffff' ) ),
 			'notes'           => sanitize_textarea_field( (string) ( $request->get_param( 'notes' ) ?? '' ) ),
-			'settings'        => wp_json_encode( $this->clean_code_settings( (array) ( $request->get_param( 'settings' ) ?? array() ) ) ),
+			'settings'        => wp_json_encode( $cleaned_settings ),
 			'created_at'      => $now,
 			'updated_at'      => $now,
 		);
@@ -493,10 +523,15 @@ class REST_Controller {
 		// Inline aggregate stats for the single-code view.
 		$stats = $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT COUNT(*) AS total,
-					SUM(scan_type = 'unique') AS unique_scans,
-					SUM(scan_type = 'repeat') AS repeat_scans,
-					MAX(scanned_at) AS last_scanned_at
+				"SELECT
+					COUNT(*)                                                                           AS total,
+					SUM(scan_type = 'unique')                                                         AS unique_scans,
+					SUM(scan_type = 'repeat')                                                         AS repeat_scans,
+					MAX(scanned_at)                                                                    AS last_scanned_at,
+					SUM(CASE WHEN scanned_at >= CURDATE()                         THEN 1 ELSE 0 END)  AS scans_today,
+					SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)  THEN 1 ELSE 0 END)  AS scans_week,
+					SUM(CASE WHEN scanned_at >= DATE_FORMAT(NOW(), '%%Y-%%m-01') THEN 1 ELSE 0 END)  AS scans_month,
+					SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)  AS scans_30d
 				 FROM {$scans_table}
 				 WHERE qr_code_id = %d",
 				$id
@@ -507,6 +542,10 @@ class REST_Controller {
 		$response['unique_scans']    = (int) ( $stats->unique_scans ?? 0 );
 		$response['repeat_scans']    = (int) ( $stats->repeat_scans ?? 0 );
 		$response['last_scanned_at'] = $stats->last_scanned_at ?? null;
+		$response['scans_today']     = (int) ( $stats->scans_today ?? 0 );
+		$response['scans_week']      = (int) ( $stats->scans_week  ?? 0 );
+		$response['scans_month']     = (int) ( $stats->scans_month ?? 0 );
+		$response['scans_30d']       = (int) ( $stats->scans_30d   ?? 0 );
 
 		return rest_ensure_response( $response );
 	}
@@ -542,15 +581,29 @@ class REST_Controller {
 		}
 
 		if ( $request->has_param( 'destination_url' ) ) {
-			$url = $this->sanitize_destination( (string) $request->get_param( 'destination_url' ) );
-			if ( ! $this->is_valid_destination( $url ) ) {
-				return new \WP_Error(
-					'qrjump_invalid_url',
-					__( 'Destination URL must be a valid http or https URL.', 'qr-jump' ),
-					array( 'status' => 400 )
-				);
+			// When settings are also being updated, read destination_type from the
+			// incoming settings; otherwise fall back to the stored settings.
+			if ( $request->has_param( 'settings' ) ) {
+				$incoming_settings = (array) $request->get_param( 'settings' );
+				$dest_type_update  = $incoming_settings['destination_type'] ?? 'url';
+			} else {
+				$stored            = $existing->settings ? (array) json_decode( $existing->settings, true ) : array();
+				$dest_type_update  = $stored['destination_type'] ?? 'url';
 			}
-			$data['destination_url'] = $url;
+
+			if ( 'vcard' === $dest_type_update ) {
+				$data['destination_url'] = sanitize_textarea_field( (string) $request->get_param( 'destination_url' ) );
+			} else {
+				$url = $this->sanitize_destination( (string) $request->get_param( 'destination_url' ) );
+				if ( ! $this->is_valid_destination( $url ) ) {
+					return new \WP_Error(
+						'qrjump_invalid_url',
+						__( 'Destination URL must be a valid http or https URL.', 'qr-jump' ),
+						array( 'status' => 400 )
+					);
+				}
+				$data['destination_url'] = $url;
+			}
 		}
 
 		if ( $request->has_param( 'slug' ) ) {
@@ -595,6 +648,15 @@ class REST_Controller {
 
 		if ( $request->has_param( 'settings' ) ) {
 			$data['settings'] = wp_json_encode( $this->clean_code_settings( (array) $request->get_param( 'settings' ) ) );
+		}
+
+		// In builder mode, always regenerate destination_url from vcard_data server-side.
+		if ( isset( $data['settings'] ) ) {
+			$updated_settings = (array) json_decode( $data['settings'], true );
+			if ( 'vcard' === ( $updated_settings['destination_type'] ?? '' )
+				&& 'builder' === ( $updated_settings['vcard_mode'] ?? 'raw' ) ) {
+				$data['destination_url'] = VCard_Builder::generate( $updated_settings['vcard_data'] ?? array() );
+			}
 		}
 
 		// Nothing to update — return the existing record.
@@ -1057,6 +1119,13 @@ class REST_Controller {
 			)
 		);
 
+		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			"SELECT HOUR(scanned_at) AS hour, COUNT(*) AS scans
+			 FROM {$scans_table}
+			 GROUP BY HOUR(scanned_at)
+			 ORDER BY hour ASC"
+		);
+
 		return rest_ensure_response(
 			array(
 				'total_scans'   => (int) ( $totals->total ?? 0 ),
@@ -1067,6 +1136,7 @@ class REST_Controller {
 				'top_codes'     => $top_codes ?? array(),
 				'recent_scans'  => $recent_scans ?? array(),
 				'daily'         => $daily ?? array(),
+				'hourly'        => $hourly ?? array(),
 			)
 		);
 	}
@@ -1202,24 +1272,98 @@ class REST_Controller {
 	 */
 	private function default_code_settings(): array {
 		return array(
+			'destination_type'          => 'url',
+			'vcard_mode'                => 'raw',
+			'vcard_data'                => $this->empty_vcard_data(),
 			'notify_on_scan'            => false,
 			'notify_email'              => '',
 			'notify_rate_limit_minutes' => (int) Settings::get( 'notify_rate_limit_minutes' ),
+			'notify_every_x_scans'      => 1,
+			'active_from'               => '',
+			'active_until'              => '',
+			'max_scans'                 => 0,
+			'max_scans_message'         => '',
 		);
 	}
 
 	/**
-	 * Sanitize and validate per-code notification settings.
+	 * Sanitize and validate per-code settings.
 	 *
 	 * @param array<string, mixed> $raw
 	 * @return array<string, mixed>
 	 */
 	private function clean_code_settings( array $raw ): array {
 		return array(
+			'destination_type'          => in_array( $raw['destination_type'] ?? 'url', array( 'url', 'vcard' ), true )
+				? $raw['destination_type']
+				: 'url',
+			'vcard_mode'                => in_array( $raw['vcard_mode'] ?? 'raw', array( 'builder', 'raw' ), true )
+				? $raw['vcard_mode']
+				: 'raw',
+			'vcard_data'                => $this->clean_vcard_data( (array) ( $raw['vcard_data'] ?? array() ) ),
 			'notify_on_scan'            => ! empty( $raw['notify_on_scan'] ),
 			'notify_email'              => sanitize_email( (string) ( $raw['notify_email'] ?? '' ) ),
 			'notify_rate_limit_minutes' => max( 1, absint( $raw['notify_rate_limit_minutes'] ?? Settings::get( 'notify_rate_limit_minutes' ) ) ),
+			'notify_every_x_scans'      => max( 1, absint( $raw['notify_every_x_scans'] ?? 1 ) ),
+			'active_from'               => $this->clean_datetime( (string) ( $raw['active_from']  ?? '' ) ),
+			'active_until'              => $this->clean_datetime( (string) ( $raw['active_until'] ?? '' ) ),
+			'max_scans'                 => absint( $raw['max_scans'] ?? 0 ),
+			'max_scans_message'         => sanitize_textarea_field( (string) ( $raw['max_scans_message'] ?? '' ) ),
 		);
+	}
+
+	/**
+	 * Sanitise the vcard_data sub-object.
+	 *
+	 * @param array<string, mixed> $raw
+	 * @return array<string, mixed>
+	 */
+	private function clean_vcard_data( array $raw ): array {
+		return array(
+			'first_name'   => sanitize_text_field( (string) ( $raw['first_name']   ?? '' ) ),
+			'last_name'    => sanitize_text_field( (string) ( $raw['last_name']    ?? '' ) ),
+			'full_name'    => sanitize_text_field( (string) ( $raw['full_name']    ?? '' ) ),
+			'org'          => sanitize_text_field( (string) ( $raw['org']          ?? '' ) ),
+			'title'        => sanitize_text_field( (string) ( $raw['title']        ?? '' ) ),
+			'phone_mobile' => sanitize_text_field( (string) ( $raw['phone_mobile'] ?? '' ) ),
+			'phone_work'   => sanitize_text_field( (string) ( $raw['phone_work']   ?? '' ) ),
+			'email'        => sanitize_email( (string) ( $raw['email']             ?? '' ) ),
+			'website'      => $this->sanitize_destination( (string) ( $raw['website'] ?? '' ) ),
+			'address'      => sanitize_textarea_field( (string) ( $raw['address']  ?? '' ) ),
+			'notes'        => sanitize_textarea_field( (string) ( $raw['notes']    ?? '' ) ),
+			'photo_id'     => absint( $raw['photo_id']  ?? 0 ),
+			'photo_url'    => esc_url_raw( (string) ( $raw['photo_url'] ?? '' ) ),
+		);
+	}
+
+	/**
+	 * Return an empty vcard_data array (used for defaults).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function empty_vcard_data(): array {
+		return array(
+			'first_name'   => '', 'last_name'    => '', 'full_name'  => '',
+			'org'          => '', 'title'        => '',
+			'phone_mobile' => '', 'phone_work'   => '',
+			'email'        => '', 'website'      => '',
+			'address'      => '', 'notes'        => '',
+			'photo_id'     => 0,  'photo_url'    => '',
+		);
+	}
+
+	/**
+	 * Validate and normalise a datetime-local string ("YYYY-MM-DDTHH:MM").
+	 *
+	 * @param string $dt
+	 * @return string Sanitized string, or empty string if invalid.
+	 */
+	private function clean_datetime( string $dt ): string {
+		$dt = trim( $dt );
+		if ( '' === $dt ) {
+			return '';
+		}
+		return strtotime( $dt ) !== false ? sanitize_text_field( $dt ) : '';
 	}
 
 	/**

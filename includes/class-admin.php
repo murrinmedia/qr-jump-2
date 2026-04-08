@@ -80,16 +80,20 @@ class Admin {
 			);
 		}
 
+		// Enqueue WordPress media library so the vCard builder can use the media picker.
+		wp_enqueue_media();
+
 		// Pass runtime data to the React app.
 		wp_localize_script(
 			'qrjump-admin',
 			'qrJumpData',
 			array(
-				'apiUrl'        => rest_url( 'qrjump/v1' ),
-				'nonce'         => wp_create_nonce( 'wp_rest' ),
-				'version'       => QRJUMP_VERSION,
-				'homeUrl'       => home_url(),
-				'adminUrl'      => admin_url(),
+				'apiUrl'         => rest_url( 'qrjump/v1' ),
+				'nonce'          => wp_create_nonce( 'wp_rest' ),
+				'version'        => QRJUMP_VERSION,
+				'homeUrl'        => home_url(),
+				'adminUrl'       => admin_url(),
+				'pluginUrl'      => QRJUMP_PLUGIN_URL,
 				'redirectPrefix' => Settings::get( 'redirect_prefix' ),
 			)
 		);
@@ -101,6 +105,9 @@ class Admin {
 	 * All UI is owned by React — this method only outputs the root element.
 	 */
 	public function render_app(): void {
+		// Inline style strips WordPress's default page padding regardless of
+		// whether the browser supports the CSS :has() selector used in style.scss.
+		echo '<style>#wpbody-content,#wpbody{padding:0!important;margin:0!important;}</style>';
 		echo '<div id="qrjump-app"></div>';
 	}
 

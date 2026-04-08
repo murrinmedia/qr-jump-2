@@ -10,6 +10,7 @@ import { Spinner } from '@wordpress/components';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import ScanChart from '../components/ScanChart';
+import HourChart from '../components/HourChart';
 
 export default function Dashboard() {
 	const navigate = useNavigate();
@@ -59,18 +60,6 @@ export default function Dashboard() {
 				<StatCard label="Total Codes"  value={ data.total_codes }  />
 				<StatCard label="Active Codes" value={ data.active_codes } />
 			</div>
-
-			{ /* ── 30-day chart ── */ }
-			{ data.daily && data.daily.length > 0 && (
-				<div className="qrjump-card" style={ { marginBottom: 24 } }>
-					<div className="qrjump-card__header">
-						<h2 className="qrjump-card__title">Scans — last 30 days</h2>
-					</div>
-					<div className="qrjump-card__content">
-						<ScanChart data={ data.daily } height={ 96 } />
-					</div>
-				</div>
-			) }
 
 			{ /* ── Two-column lower section ── */ }
 			<div className="qrjump-dashboard-grid">
@@ -169,6 +158,34 @@ export default function Dashboard() {
 					) }
 				</div>
 
+			</div>
+
+			{ /* ── Charts (below the tables) ── */ }
+			<div className="qrjump-dashboard-grid" style={ { marginTop: 24 } }>
+				<div className="qrjump-card">
+					<div className="qrjump-card__header">
+						<h2 className="qrjump-card__title">Daily scans — last 30 days</h2>
+					</div>
+					<div className="qrjump-card__content">
+						{ data.daily && data.daily.length > 0 ? (
+							<ScanChart data={ data.daily } />
+						) : (
+							<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No scan data yet.</p>
+						) }
+					</div>
+				</div>
+				<div className="qrjump-card">
+					<div className="qrjump-card__header">
+						<h2 className="qrjump-card__title">Scans by hour of day</h2>
+					</div>
+					<div className="qrjump-card__content">
+						{ data.hourly && data.hourly.length > 0 ? (
+							<HourChart data={ data.hourly } />
+						) : (
+							<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No scan data yet.</p>
+						) }
+					</div>
+				</div>
 			</div>
 		</>
 	);

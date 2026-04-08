@@ -22,6 +22,9 @@ import QRPreview from '../components/QRPreview';
 import ColourPicker from '../components/ColourPicker';
 import SlugInput from '../components/SlugInput';
 import ScanChart from '../components/ScanChart';
+import HourChart from '../components/HourChart';
+import CopyButton from '../components/CopyButton';
+import VCardBuilder, { EMPTY_VCARD_DATA } from '../components/VCardBuilder';
 
 const DEFAULTS = {
 	title:           '',
@@ -33,9 +36,17 @@ const DEFAULTS = {
 	bg_colour:       '#ffffff',
 	notes:           '',
 	settings: {
+		destination_type:          'url',
+		vcard_mode:                'raw',
+		vcard_data:                { ...EMPTY_VCARD_DATA },
 		notify_on_scan:            false,
 		notify_email:              '',
 		notify_rate_limit_minutes: 5,
+		notify_every_x_scans:      1,
+		active_from:               '',
+		active_until:              '',
+		max_scans:                 0,
+		max_scans_message:         '',
 	},
 };
 
@@ -46,6 +57,8 @@ export default function QREdit() {
 
 	const [ form,        setForm        ] = useState( DEFAULTS );
 	const [ slugManual,  setSlugManual  ] = useState( false );
+	// Preserves destination content when switching types so nothing is lost.
+	const [ destBackup,  setDestBackup  ] = useState( { url: '', vcard: '' } );
 	const [ loading,     setLoading     ] = useState( ! isNew );
 	const [ saving,      setSaving      ] = useState( false );
 	const [ notice,      setNotice      ] = useState( null );
@@ -77,6 +90,10 @@ export default function QREdit() {
 						unique:       code.unique_scans,
 						repeat:       code.repeat_scans,
 						last_scanned: code.last_scanned_at,
+						today:        code.scans_today ?? 0,
+						week:         code.scans_week  ?? 0,
+						month:        code.scans_month ?? 0,
+						scans_30d:    code.scans_30d   ?? 0,
 					} );
 				}
 			} )
@@ -135,7 +152,7 @@ export default function QREdit() {
 	async function handleResetScans() {
 		if ( ! window.confirm( 'Reset all scan data for this code? This cannot be undone.' ) ) return;
 		await api.codes.resetScans( Number( id ) );
-		setStats( { total: 0, unique: 0, repeat: 0, last_scanned: null } );
+		setStats( { total: 0, unique: 0, repeat: 0, last_scanned: null, today: 0, week: 0, month: 0, scans_30d: 0 } );
 		setFullStats( prev => prev ? { ...prev, total: 0, unique_scans: 0, repeat_scans: 0, daily: [], hourly: [], referrers: [] } : null );
 	}
 
@@ -158,9 +175,19 @@ export default function QREdit() {
 			<div className="qrjump-edit-layout__form">
 
 				<div className="qrjump-page-header">
-					<h1 className="qrjump-page-header__title">
-						{ isNew ? 'New QR Code' : ( form.title || 'Edit QR Code' ) }
-					</h1>
+					<div style={ { display: 'flex', alignItems: 'center', gap: 12 } }>
+						<h1 className="qrjump-page-header__title">
+							{ isNew ? 'New QR Code' : ( form.title || 'Edit QR Code' ) }
+						</h1>
+						{ ! isNew && (
+							<ToggleControl
+								label={ form.status ? 'Active' : 'Inactive' }
+								checked={ !! form.status }
+								onChange={ val => setField( 'status', val ? 1 : 0 ) }
+								__nextHasNoMarginBottom
+							/>
+						) }
+					</div>
 					<Button variant="tertiary" onClick={ () => navigate( '/codes' ) }>
 						← Back
 					</Button>
@@ -180,34 +207,31 @@ export default function QREdit() {
 				{ /* ── Inline stat totals ── */ }
 				{ ! isNew && stats && (
 					<div className="qrjump-edit-stats">
-						<div className="qrjump-edit-stat">
-							<span className="qrjump-edit-stat__label">Total scans</span>
-							<span className="qrjump-edit-stat__value">
-								{ Number( stats.total ).toLocaleString() }
-							</span>
+						<div className="qrjump-edit-stats__grid">
+							{ [
+								{ label: 'Total Scans',  value: stats.total    },
+								{ label: 'Unique',       value: stats.unique   },
+								{ label: 'Repeat',       value: stats.repeat   },
+								{ label: 'Today',        value: stats.today    },
+								{ label: 'Last 7 Days',  value: stats.week     },
+								{ label: 'This Month',   value: stats.month    },
+								{ label: 'Last 30 Days', value: stats.scans_30d },
+							].map( ( { label, value } ) => (
+								<div key={ label } className="qrjump-edit-stat">
+									<span className="qrjump-edit-stat__label">{ label }</span>
+									<span className="qrjump-edit-stat__value">
+										{ Number( value ).toLocaleString() }
+									</span>
+								</div>
+							) ) }
 						</div>
-						<div className="qrjump-edit-stat">
-							<span className="qrjump-edit-stat__label">Unique</span>
-							<span className="qrjump-edit-stat__value">
-								{ Number( stats.unique ).toLocaleString() }
-							</span>
-						</div>
-						<div className="qrjump-edit-stat">
-							<span className="qrjump-edit-stat__label">Repeat</span>
-							<span className="qrjump-edit-stat__value">
-								{ Number( stats.repeat ).toLocaleString() }
-							</span>
-						</div>
-						<div className="qrjump-edit-stat qrjump-edit-stat--wide">
-							<span className="qrjump-edit-stat__label">Last scan</span>
-							<span className="qrjump-edit-stat__value" style={ { fontSize: 13, fontWeight: 500 } }>
+						<div className="qrjump-edit-stats__meta">
+							<span className="qrjump-edit-stats__last-scan">
 								{ stats.last_scanned
-									? new Date( stats.last_scanned + 'Z' ).toLocaleString()
-									: 'Never'
+									? <>Last scan: <strong>{ new Date( stats.last_scanned + 'Z' ).toLocaleString() }</strong></>
+									: 'No scans yet'
 								}
 							</span>
-						</div>
-						<div className="qrjump-edit-stat qrjump-edit-stat--actions">
 							<Button
 								variant="tertiary"
 								size="small"
@@ -221,7 +245,7 @@ export default function QREdit() {
 				) }
 
 				{ /* ── Form ── */ }
-				<form className="qrjump-form" onSubmit={ handleSubmit }>
+				<form id="qrjump-code-form" className="qrjump-form" onSubmit={ handleSubmit }>
 
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
@@ -238,16 +262,92 @@ export default function QREdit() {
 								/>
 							</div>
 							<div className="qrjump-form-row">
-								<TextControl
-									label="Destination URL"
-									value={ form.destination_url }
-									onChange={ val => setField( 'destination_url', val ) }
-									type="url"
-									placeholder="https://example.com/landing-page"
-									required
+								<SelectControl
+									label="Destination type"
+									value={ form.settings.destination_type }
+									options={ [
+										{ label: 'URL (redirect)',     value: 'url'   },
+										{ label: 'vCard / Plain text', value: 'vcard' },
+									] }
+									onChange={ newType => {
+										const curType = form.settings.destination_type;
+										const curVal  = form.destination_url;
+										setDestBackup( prev => ( { ...prev, [ curType ]: curVal } ) );
+										setField( 'destination_url', destBackup[ newType ] || '' );
+										setSetting( 'destination_type', newType );
+									} }
 									__nextHasNoMarginBottom
 								/>
 							</div>
+
+							{ form.settings.destination_type === 'vcard' ? (
+								<div className="qrjump-vcard-editor">
+
+									{ /* ── Mode switcher ── */ }
+									<div className="qrjump-vcard-mode-bar">
+										<button
+											type="button"
+											className={ `qrjump-vcard-mode-btn${ form.settings.vcard_mode === 'builder' ? ' qrjump-vcard-mode-btn--active' : '' }` }
+											onClick={ () => {
+												if ( form.settings.vcard_mode === 'builder' ) return;
+												// Raw → Builder: warn if raw content exists.
+												if (
+													form.destination_url.trim() &&
+													! window.confirm(
+														'Switching to Builder mode will replace your raw vCard content with the structured fields.\n\nYour existing raw text will be lost. Continue?'
+													)
+												) return;
+												setSetting( 'vcard_mode', 'builder' );
+											} }
+										>
+											Builder
+										</button>
+										<button
+											type="button"
+											className={ `qrjump-vcard-mode-btn${ form.settings.vcard_mode !== 'builder' ? ' qrjump-vcard-mode-btn--active' : '' }` }
+											onClick={ () => {
+												if ( form.settings.vcard_mode !== 'builder' ) return;
+												// Builder → Raw: pre-populate textarea with current preview.
+												setField( 'destination_url', generateVCardPreview( form.settings.vcard_data ) );
+												setSetting( 'vcard_mode', 'raw' );
+											} }
+										>
+											Raw
+										</button>
+									</div>
+
+									{ form.settings.vcard_mode === 'builder' ? (
+										<VCardBuilder
+											data={ form.settings.vcard_data }
+											onChange={ newData => setSetting( 'vcard_data', newData ) }
+										/>
+									) : (
+										<div className="qrjump-form-row">
+											<TextareaControl
+												label="vCard / Text content"
+												value={ form.destination_url }
+												onChange={ val => setField( 'destination_url', val ) }
+												rows={ 8 }
+												placeholder={ 'BEGIN:VCARD\nVERSION:3.0\nFN:Jane Smith\nTEL:+61400000000\nEMAIL:jane@example.com\nEND:VCARD' }
+												help="Paste your vCard text here. Scanning the QR code downloads it as a .vcf file. Scan analytics still work."
+												__nextHasNoMarginBottom
+											/>
+										</div>
+									) }
+								</div>
+							) : (
+								<div className="qrjump-form-row">
+									<TextControl
+										label="Destination URL"
+										value={ form.destination_url }
+										onChange={ val => setField( 'destination_url', val ) }
+										type="url"
+										placeholder="https://example.com/landing-page"
+										required
+										__nextHasNoMarginBottom
+									/>
+								</div>
+							) }
 						</div>
 					</div>
 
@@ -273,11 +373,11 @@ export default function QREdit() {
 										The slug is permanent and cannot be changed after creation.
 									</p>
 									{ shortUrl && (
-										<p className="qrjump-short-url-preview">
-											<span className="qrjump-short-url-preview__label">Short URL:</span>
-											{ ' ' }
-											<a href={ shortUrl } target="_blank" rel="noreferrer">{ shortUrl }</a>
-										</p>
+										<div className="qrjump-short-url-preview">
+											<span className="qrjump-short-url-preview__label">Short URL</span>
+											<strong className="qrjump-short-url-preview__url">{ shortUrl }</strong>
+											<CopyButton text={ shortUrl } label="Copy" />
+										</div>
 									) }
 								</>
 							) : slugManual ? (
@@ -291,11 +391,11 @@ export default function QREdit() {
 										/>
 									</div>
 									{ shortUrl && (
-										<p className="qrjump-short-url-preview">
-											<span className="qrjump-short-url-preview__label">Short URL:</span>
-											{ ' ' }
-											<a href={ shortUrl } target="_blank" rel="noreferrer">{ shortUrl }</a>
-										</p>
+										<div className="qrjump-short-url-preview">
+											<span className="qrjump-short-url-preview__label">Short URL</span>
+											<strong className="qrjump-short-url-preview__url">{ shortUrl }</strong>
+											<CopyButton text={ shortUrl } label="Copy" />
+										</div>
 									) }
 								</>
 							) : (
@@ -308,31 +408,52 @@ export default function QREdit() {
 
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
-							<h2 className="qrjump-form-section__title">Behaviour</h2>
+							<h2 className="qrjump-form-section__title">Schedule &amp; Limits</h2>
 						</div>
 						<div className="qrjump-form-section__body">
-							<div className="qrjump-form-row qrjump-form-row--cols-2">
-								<SelectControl
-									label="Status"
-									value={ String( form.status ) }
-									options={ [
-										{ label: 'Active',   value: '1' },
-										{ label: 'Inactive', value: '0' },
-									] }
-									onChange={ val => setField( 'status', Number( val ) ) }
-									__nextHasNoMarginBottom
-								/>
-								<SelectControl
-									label="Redirect type"
-									value={ String( form.redirect_type ) }
-									options={ [
-										{ label: '302 — Temporary (recommended)', value: '302' },
-										{ label: '301 — Permanent',              value: '301' },
-									] }
-									onChange={ val => setField( 'redirect_type', Number( val ) ) }
-									__nextHasNoMarginBottom
-								/>
+							<p className="qrjump-help-text">Leave schedule fields blank for no restriction. Set max scans to 0 for unlimited.</p>
+							<div className="qrjump-form-row qrjump-form-row--cols-3">
+								<div>
+									<label className="qrjump-label">Active from</label>
+									<input
+										type="datetime-local"
+										className="qrjump-datetime-input"
+										value={ form.settings.active_from }
+										onChange={ e => setSetting( 'active_from', e.target.value ) }
+									/>
+								</div>
+								<div>
+									<label className="qrjump-label">Active until (expiry)</label>
+									<input
+										type="datetime-local"
+										className="qrjump-datetime-input"
+										value={ form.settings.active_until }
+										onChange={ e => setSetting( 'active_until', e.target.value ) }
+									/>
+								</div>
+								<div>
+									<TextControl
+										label="Max scans (0 = unlimited)"
+										value={ String( form.settings.max_scans ) }
+										onChange={ val => setSetting( 'max_scans', Math.max( 0, parseInt( val ) || 0 ) ) }
+										type="number"
+										min={ 0 }
+										__nextHasNoMarginBottom
+									/>
+								</div>
 							</div>
+							{ form.settings.max_scans > 0 && (
+								<div className="qrjump-form-row" style={ { marginTop: 14 } }>
+									<TextareaControl
+										label="Message shown when limit is reached"
+										value={ form.settings.max_scans_message }
+										onChange={ val => setSetting( 'max_scans_message', val ) }
+										rows={ 2 }
+										placeholder="This QR code has reached its scan limit."
+										__nextHasNoMarginBottom
+									/>
+								</div>
+							) }
 						</div>
 					</div>
 
@@ -401,42 +522,33 @@ export default function QREdit() {
 								</div>
 								<div className="qrjump-form-row">
 									<TextControl
-										label="Rate limit (minutes between emails)"
-										value={ String( form.settings.notify_rate_limit_minutes ) }
+										label="Notify every X scans"
+										value={ String( form.settings.notify_every_x_scans ) }
 										onChange={ val =>
-											setSetting( 'notify_rate_limit_minutes', Math.max( 1, parseInt( val ) || 1 ) )
+											setSetting( 'notify_every_x_scans', Math.max( 1, parseInt( val ) || 1 ) )
 										}
 										type="number"
 										min={ 1 }
-										help="Overrides the global default set in Settings."
+										help="Set to 1 to be notified on every scan, 10 to be notified every 10th scan, etc."
 										__nextHasNoMarginBottom
 									/>
 								</div>
+								{ form.settings.notify_every_x_scans <= 1 && (
+									<div className="qrjump-form-row">
+										<TextControl
+											label="Rate limit (minutes between emails)"
+											value={ String( form.settings.notify_rate_limit_minutes ) }
+											onChange={ val =>
+												setSetting( 'notify_rate_limit_minutes', Math.max( 1, parseInt( val ) || 1 ) )
+											}
+											type="number"
+											min={ 1 }
+											help="Only used when notifying on every scan. Overrides the global default set in Settings."
+											__nextHasNoMarginBottom
+										/>
+									</div>
+								) }
 							</div>
-						) }
-					</div>
-
-					<div className="qrjump-form-actions">
-						<Button
-							variant="primary"
-							type="submit"
-							isBusy={ saving }
-							disabled={ saving }
-						>
-							{ saving ? 'Saving…' : isNew ? 'Create QR Code' : 'Save Changes' }
-						</Button>
-						{ ! isNew && (
-							<Button
-								variant="tertiary"
-								isDestructive
-								onClick={ async () => {
-									if ( ! window.confirm( 'Delete this QR code and all its scan history? This cannot be undone.' ) ) return;
-									await api.codes.delete( Number( id ) );
-									navigate( '/codes' );
-								} }
-							>
-								Delete code
-							</Button>
 						) }
 					</div>
 
@@ -444,10 +556,10 @@ export default function QREdit() {
 
 				{ /* ── Full stats (below form, saved codes only) ── */ }
 				{ ! isNew && (
-					<div style={ { marginTop: 24 } }>
+					<div className="qrjump-dashboard-grid" style={ { marginTop: 24 } }>
 
 						{ /* 30-day line chart */ }
-						<div className="qrjump-card" style={ { marginBottom: 20 } }>
+						<div className="qrjump-card">
 							<div className="qrjump-card__header">
 								<h2 className="qrjump-card__title">Daily scans — last 30 days</h2>
 							</div>
@@ -457,73 +569,35 @@ export default function QREdit() {
 										<Spinner />
 									</div>
 								) : fullStats?.daily?.length > 0 ? (
-									<ScanChart data={ fullStats.daily } height={ 120 } />
+									<ScanChart data={ fullStats.daily } />
 								) : (
 									<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No scan data yet.</p>
 								) }
 							</div>
 						</div>
 
-						<div className="qrjump-dashboard-grid">
-
-							{ /* Hour of day */ }
-							<div className="qrjump-card">
-								<div className="qrjump-card__header">
-									<h2 className="qrjump-card__title">Scans by hour of day</h2>
-								</div>
-								<div className="qrjump-card__content">
-									{ statsLoading ? (
-										<div style={ { display: 'flex', justifyContent: 'center', padding: 16 } }><Spinner /></div>
-									) : fullStats?.hourly?.length > 0 ? (
-										<HourChart data={ fullStats.hourly } />
-									) : (
-										<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No data yet.</p>
-									) }
-								</div>
+						{ /* Hour of day */ }
+						<div className="qrjump-card">
+							<div className="qrjump-card__header">
+								<h2 className="qrjump-card__title">Scans by hour of day</h2>
 							</div>
-
-							{ /* Top referrers */ }
-							<div className="qrjump-card">
-								<div className="qrjump-card__header">
-									<h2 className="qrjump-card__title">Top referrers</h2>
-								</div>
+							<div className="qrjump-card__content">
 								{ statsLoading ? (
 									<div style={ { display: 'flex', justifyContent: 'center', padding: 16 } }><Spinner /></div>
-								) : fullStats?.referrers?.length > 0 ? (
-									<table className="qrjump-table">
-										<thead>
-											<tr>
-												<th>Referrer</th>
-												<th style={ { textAlign: 'right' } }>Scans</th>
-											</tr>
-										</thead>
-										<tbody>
-											{ fullStats.referrers.map( ( r, i ) => (
-												<tr key={ i }>
-													<td style={ { fontSize: 12, wordBreak: 'break-all' } }>
-														{ r.referrer || <em style={ { color: 'var(--qrjump-text-muted)' } }>Direct / unknown</em> }
-													</td>
-													<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
-														{ Number( r.scans ).toLocaleString() }
-													</td>
-												</tr>
-											) ) }
-										</tbody>
-									</table>
+								) : fullStats?.hourly?.length > 0 ? (
+									<HourChart data={ fullStats.hourly } />
 								) : (
-									<div className="qrjump-card__content">
-										<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No referrer data yet.</p>
-									</div>
+									<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No data yet.</p>
 								) }
 							</div>
-
 						</div>
+
 					</div>
 				) }
 
 			</div>
 
-			{ /* ── Right: QR preview (sticky) ── */ }
+			{ /* ── Right: QR preview + actions (sticky) ── */ }
 			<div className="qrjump-edit-layout__preview">
 				<QRPreview
 					codeId={ previewCodeId }
@@ -532,36 +606,57 @@ export default function QREdit() {
 					bgColour={ form.bg_colour }
 					slug={ form.slug || 'qr-code' }
 				/>
+				<div className="qrjump-preview-actions">
+					<Button
+						variant="primary"
+						type="submit"
+						form="qrjump-code-form"
+						isBusy={ saving }
+						disabled={ saving }
+						style={ { width: '100%', justifyContent: 'center' } }
+					>
+						{ saving ? 'Saving…' : isNew ? 'Create QR Code' : 'Save Changes' }
+					</Button>
+					{ ! isNew && (
+						<Button
+							variant="tertiary"
+							isDestructive
+							style={ { width: '100%', justifyContent: 'center', marginTop: 8 } }
+							onClick={ async () => {
+								if ( ! window.confirm( 'Delete this QR code and all its scan history? This cannot be undone.' ) ) return;
+								await api.codes.delete( Number( id ) );
+								navigate( '/codes' );
+							} }
+						>
+							Delete code
+						</Button>
+					) }
+				</div>
 			</div>
 
 		</div>
 	);
 }
 
-/** Horizontal bar chart for scans by hour of day (0–23). */
-function HourChart( { data } ) {
-	const filled = Array.from( { length: 24 }, ( _, h ) => {
-		const found = data.find( d => Number( d.hour ) === h );
-		return { hour: h, scans: found ? Number( found.scans ) : 0 };
-	} );
-	const max = Math.max( ...filled.map( d => d.scans ), 1 );
-
-	return (
-		<div className="qrjump-hour-chart">
-			{ filled.map( ( { hour, scans } ) => (
-				<div key={ hour } className="qrjump-hour-chart__row">
-					<span className="qrjump-hour-chart__label">
-						{ String( hour ).padStart( 2, '0' ) }:00
-					</span>
-					<div className="qrjump-hour-chart__bar-wrap">
-						<div
-							className="qrjump-hour-chart__bar"
-							style={ { width: scans ? `${ ( scans / max ) * 100 }%` : '0%' } }
-						/>
-					</div>
-					<span className="qrjump-hour-chart__count">{ scans || '' }</span>
-				</div>
-			) ) }
-		</div>
-	);
+/**
+ * Generate a client-side vCard preview string from structured builder data.
+ * Used for display and for pre-populating Raw mode on switch.
+ * Photo embedding is server-side only.
+ */
+function generateVCardPreview( data = {} ) {
+	const lines = [ 'BEGIN:VCARD', 'VERSION:3.0' ];
+	const fn = data.full_name || [ data.first_name, data.last_name ].filter( Boolean ).join( ' ' );
+	lines.push( 'FN:' + ( fn || 'Unknown' ) );
+	lines.push( 'N:' + ( data.last_name || '' ) + ';' + ( data.first_name || '' ) + ';;;' );
+	if ( data.org )          lines.push( 'ORG:' + data.org );
+	if ( data.title )        lines.push( 'TITLE:' + data.title );
+	if ( data.phone_mobile ) lines.push( 'TEL;TYPE=CELL:' + data.phone_mobile );
+	if ( data.phone_work )   lines.push( 'TEL;TYPE=WORK:' + data.phone_work );
+	if ( data.email )        lines.push( 'EMAIL:' + data.email );
+	if ( data.website )      lines.push( 'URL:' + data.website );
+	if ( data.address )      lines.push( 'ADR;TYPE=WORK:;;' + data.address + ';;;;' );
+	if ( data.notes )        lines.push( 'NOTE:' + data.notes );
+	if ( data.photo_id )     lines.push( 'PHOTO;ENCODING=b;TYPE=JPEG:[photo embedded on save]' );
+	lines.push( 'END:VCARD' );
+	return lines.join( '\n' );
 }
