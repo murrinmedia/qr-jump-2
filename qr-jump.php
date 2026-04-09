@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       QR Jump
  * Description:       Dynamic QR code generator with configurable short URLs, scan analytics, and a premium admin interface.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL v2 or later

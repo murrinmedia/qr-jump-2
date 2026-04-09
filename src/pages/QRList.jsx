@@ -241,6 +241,7 @@ export default function QRList() {
 								</th>
 								<SortHeader col="title"      label="Title"    current={ orderby } dir={ order } onSort={ handleSort } />
 								<th>Destination</th>
+								<th style={ { textAlign: 'right' } }>Total</th>
 								<th style={ { textAlign: 'right' } }>Today</th>
 								<th style={ { textAlign: 'right' } }>Week</th>
 								<th style={ { textAlign: 'right' } }>Month</th>
@@ -277,6 +278,9 @@ export default function QRList() {
 											<a href={ code.destination_url } target="_blank" rel="noreferrer" title={ code.destination_url }>
 												{ code.destination_url }
 											</a>
+										</td>
+										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
+											{ Number( code.total_scans ).toLocaleString() }
 										</td>
 										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
 											{ Number( code.scans_today ).toLocaleString() }

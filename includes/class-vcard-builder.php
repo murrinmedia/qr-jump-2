@@ -101,26 +101,63 @@ class VCard_Builder {
 	/**
 	 * Read a WP media attachment and return its base64-encoded content.
 	 *
+	 * Uses the WP-generated 'medium' thumbnail (max 300×300px) rather than
+	 * the original file. This keeps the vCard well within the TEXT column
+	 * limit (~65KB) and ensures compatibility with contact apps.
+	 * Falls back to the original file only if no intermediate size exists.
+	 *
 	 * @param int $attachment_id
 	 * @return array{type: string, base64: string}|null
 	 */
 	private static function encode_photo( int $attachment_id ): ?array {
-		$path = get_attached_file( $attachment_id );
-		if ( ! $path || ! file_exists( $path ) ) {
-			return null;
-		}
-
+		// Only JPEG and PNG are widely supported in vCard photo fields.
 		$mime_map = array(
 			'image/jpeg' => 'JPEG',
 			'image/jpg'  => 'JPEG',
 			'image/png'  => 'PNG',
-			'image/gif'  => 'GIF',
 		);
 
 		$mime = (string) get_post_mime_type( $attachment_id );
 		$type = $mime_map[ $mime ] ?? null;
 		if ( null === $type ) {
 			return null;
+		}
+
+		// Prefer the 'medium' intermediate size (WP generates this at ≤300×300px).
+		// This is small enough to embed safely and large enough to look good.
+		$sized = wp_get_attachment_image_src( $attachment_id, 'medium' );
+		if ( $sized ) {
+			// wp_get_attachment_image_src returns a URL; resolve to a filesystem path.
+			$upload_dir = wp_upload_dir();
+			$base_url   = $upload_dir['baseurl'];
+			$base_dir   = $upload_dir['basedir'];
+			$url        = $sized[0];
+
+			// Strip the base URL to get the relative path, then resolve to a filesystem path.
+			if ( 0 === strpos( $url, $base_url ) ) {
+				$rel_path = substr( $url, strlen( $base_url ) );
+				$path     = $base_dir . $rel_path;
+			} else {
+				$path = null;
+			}
+		} else {
+			$path = null;
+		}
+
+		// Fall back to the original file if no intermediate size was found.
+		if ( ! $path || ! file_exists( $path ) ) {
+			$path = get_attached_file( $attachment_id );
+			if ( ! $path || ! file_exists( $path ) ) {
+				return null;
+			}
+		}
+
+		// Enforce a 40KB file-size ceiling to ensure the encoded result fits
+		// comfortably within the destination_url TEXT column (max ~65KB total).
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$size = @filesize( $path );
+		if ( false !== $size && $size > 40960 ) {
+			return null; // Image still too large even after resizing — skip photo.
 		}
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
