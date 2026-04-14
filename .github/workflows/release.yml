@@ -57,6 +57,11 @@ jobs:
             --exclude='.DS_Store' \
             --exclude='plugin-build' \
             --exclude='migrate-from-v1.sql' \
+            --exclude='vendor/endroid/qr-code/assets/noto_sans.otf' \
+            --exclude='vendor/endroid/qr-code/assets/blackfire.png' \
+            --exclude='vendor/endroid/qr-code/README.md' \
+            --exclude='vendor/bacon/bacon-qr-code/README.md' \
+            --exclude='vendor/yahnis-elsts/plugin-update-checker/README.md' \
             . qr-jump/
           zip -r qr-jump.zip qr-jump/
 
