@@ -477,12 +477,12 @@
 		}
 
 		&__title {
-			font-size: 15px;
-			font-weight: 600;
-			text-transform: none;
-			letter-spacing: 0;
-			color: var(--qrjump-heading);
-			margin: 0;
+			font-size: 15px !important;
+			font-weight: 600 !important;
+			text-transform: none !important;
+			letter-spacing: 0 !important;
+			color: var(--qrjump-heading) !important;
+			margin: 0 !important;
 		}
 
 		&__body { padding: 18px 20px; }
