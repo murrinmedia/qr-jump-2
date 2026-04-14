@@ -174,40 +174,40 @@ export default function QREdit() {
 		{ /* ── Sticky action bar (saved codes only) ── */ }
 		{ ! isNew && (
 			<div className="qrjump-edit-actionbar">
-				<div className="qrjump-edit-actionbar__url">
-					{ shortUrl && (
-						<>
-							<span className="qrjump-edit-actionbar__url-text">{ shortUrl }</span>
+				{ shortUrl && (
+					<div className="qrjump-edit-actionbar__url-group">
+						<span className="qrjump-edit-actionbar__url-text">{ shortUrl }</span>
+						<div className="qrjump-edit-actionbar__url-btns">
 							<CopyButton text={ shortUrl } label="Copy" />
 							<a
 								href={ shortUrl }
 								target="_blank"
 								rel="noreferrer"
-								className="qrjump-edit-actionbar__open"
+								className="qrjump-edit-actionbar__pill"
 							>
 								Open ↗
 							</a>
-						</>
-					) }
-				</div>
+						</div>
+					</div>
+				) }
 				<div className="qrjump-edit-actionbar__actions">
 					{ previewCodeId && (
-						<>
+						<div className="qrjump-edit-actionbar__downloads">
 							<a
 								href={ api.codes.qrUrl( previewCodeId, { format: 'png', size: 1000, download: true } ) }
 								download={ `${ form.slug }.png` }
-								className="qrjump-edit-actionbar__download"
+								className="qrjump-edit-actionbar__pill"
 							>
 								↓ PNG
 							</a>
 							<a
 								href={ api.codes.qrUrl( previewCodeId, { format: 'svg', download: true } ) }
 								download={ `${ form.slug }.svg` }
-								className="qrjump-edit-actionbar__download"
+								className="qrjump-edit-actionbar__pill"
 							>
 								↓ SVG
 							</a>
-						</>
+						</div>
 					) }
 					<Button
 						variant="primary"
@@ -647,23 +647,25 @@ export default function QREdit() {
 					slug={ form.slug || 'qr-code' }
 				/>
 
-				{ /* Save / Delete */ }
+				{ /* Save (new codes only — existing codes use the top bar) / Delete */ }
 				<div className="qrjump-sidebar-panel">
-					<Button
-						variant="primary"
-						type="submit"
-						form="qrjump-code-form"
-						isBusy={ saving }
-						disabled={ saving }
-						style={ { width: '100%', justifyContent: 'center' } }
-					>
-						{ saving ? 'Saving…' : isNew ? 'Create QR Code' : 'Save Changes' }
-					</Button>
+					{ isNew && (
+						<Button
+							variant="primary"
+							type="submit"
+							form="qrjump-code-form"
+							isBusy={ saving }
+							disabled={ saving }
+							style={ { width: '100%', justifyContent: 'center' } }
+						>
+							{ saving ? 'Saving…' : 'Create QR Code' }
+						</Button>
+					) }
 					{ ! isNew && (
 						<Button
 							variant="tertiary"
 							isDestructive
-							style={ { width: '100%', justifyContent: 'center', marginTop: 8 } }
+							style={ { width: '100%', justifyContent: 'center' } }
 							onClick={ async () => {
 								if ( ! window.confirm( 'Delete this QR code and all its scan history? This cannot be undone.' ) ) return;
 								await api.codes.delete( Number( id ) );
@@ -720,30 +722,27 @@ export default function QREdit() {
 						) }
 
 						{ /* Actions */ }
-						{ shortUrl && (
-							<div className="qrjump-sidebar-panel">
-								<h3 className="qrjump-sidebar-panel__title">Actions</h3>
-								<div className="qrjump-sidebar-actions">
-									<CopyButton text={ shortUrl } label="Copy Short URL" className="qrjump-sidebar-action-btn" />
-									<Button
-										variant="secondary"
-										style={ { width: '100%', justifyContent: 'center' } }
-										onClick={ () => window.open( form.destination_url, '_blank', 'noreferrer' ) }
-										disabled={ ! form.destination_url }
-									>
-										Open Destination ↗
-									</Button>
-									<Button
-										variant="tertiary"
-										isDestructive
-										style={ { width: '100%', justifyContent: 'center' } }
-										onClick={ handleResetScans }
-									>
-										Reset Stats
-									</Button>
-								</div>
+						<div className="qrjump-sidebar-panel">
+							<h3 className="qrjump-sidebar-panel__title">Actions</h3>
+							<div className="qrjump-sidebar-actions">
+								<Button
+									variant="secondary"
+									style={ { width: '100%', justifyContent: 'center' } }
+									onClick={ () => window.open( form.destination_url, '_blank', 'noreferrer' ) }
+									disabled={ ! form.destination_url }
+								>
+									Open Destination ↗
+								</Button>
+								<Button
+									variant="tertiary"
+									isDestructive
+									style={ { width: '100%', justifyContent: 'center' } }
+									onClick={ handleResetScans }
+								>
+									Reset Stats
+								</Button>
 							</div>
-						) }
+						</div>
 					</>
 				) }
 

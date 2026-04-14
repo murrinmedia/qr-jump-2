@@ -866,29 +866,35 @@
 		position: sticky;
 		top: 84px; // 32px WP admin bar + 52px plugin topbar
 		z-index: 90;
-		background: var(--qrjump-surface);
-		border-bottom: 1px solid var(--qrjump-border);
+		background: #fff;
+		border-bottom: 1px solid #e8e8e8;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px;
-		padding: 10px 24px;
-		margin: 0 -24px 16px; // bleed to edges of content area
-		box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+		gap: 16px;
+		padding: 8px 24px;
+		margin: 0 -24px 20px;
+		box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 
-		@media (max-width: 782px) { top: 116px; } // 46px WP bar + 52px topbar + 18px extra mobile
-		@media (max-width: 600px) {
+		@media (max-width: 782px) { top: 116px; }
+		@media (max-width: 700px) {
 			flex-direction: column;
 			align-items: stretch;
 			gap: 8px;
+			padding: 10px 16px;
 		}
 
-		&__url {
+		// Left: URL + copy + open grouped together
+		&__url-group {
 			display: flex;
 			align-items: center;
-			gap: 8px;
+			gap: 6px;
 			min-width: 0;
 			flex: 1;
+			background: #f8f8f8;
+			border: 1px solid #e8e8e8;
+			border-radius: var(--qrjump-radius-sm);
+			padding: 4px 4px 4px 10px;
 		}
 
 		&__url-text {
@@ -899,18 +905,17 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 			min-width: 0;
+			flex: 1;
 		}
 
-		&__open {
-			font-size: 12px;
-			color: var(--qrjump-accent);
-			text-decoration: none;
-			white-space: nowrap;
+		&__url-btns {
+			display: flex;
+			align-items: center;
+			gap: 4px;
 			flex-shrink: 0;
-
-			&:hover { text-decoration: underline; }
 		}
 
+		// Right: downloads + save
 		&__actions {
 			display: flex;
 			align-items: center;
@@ -918,28 +923,39 @@
 			flex-shrink: 0;
 		}
 
-		&__download {
+		&__downloads {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		// Shared pill style: copy, open, PNG, SVG
+		&__pill,
+		.qrjump-copy-btn {
 			font-size: 12px;
+			font-weight: 500;
 			color: var(--qrjump-text-muted);
-			text-decoration: none;
-			padding: 5px 10px;
-			border: 1px solid var(--qrjump-border);
-			border-radius: var(--qrjump-radius-sm);
-			white-space: nowrap;
 			background: var(--qrjump-surface);
+			border: 1px solid #e0e0e0;
+			border-radius: var(--qrjump-radius-sm);
+			padding: 4px 10px;
+			text-decoration: none;
+			white-space: nowrap;
+			cursor: pointer;
+			line-height: 1.5;
+			transition: color 0.15s, border-color 0.15s;
 
 			&:hover {
 				color: var(--qrjump-accent);
 				border-color: var(--qrjump-accent);
+				background: var(--qrjump-surface);
 			}
-		}
 
-		// Style the CopyButton to match the bar.
-		.qrjump-copy-btn {
-			font-size: 12px;
-			padding: 5px 10px;
-			border-radius: var(--qrjump-radius-sm);
-			flex-shrink: 0;
+			// Copied state for CopyButton
+			&.qrjump-copy-btn--copied {
+				color: var(--qrjump-success);
+				border-color: var(--qrjump-success);
+			}
 		}
 	}
 
@@ -973,18 +989,25 @@
 
 	.qrjump-sidebar-panel {
 		background: var(--qrjump-surface);
-		border: 1px solid var(--qrjump-border);
+		border: 1px solid #e8e8e8;
 		border-radius: var(--qrjump-radius);
-		padding: 14px 16px;
-		margin-top: 12px;
+		padding: 12px 14px;
+		margin-top: 10px;
 
 		&__title {
-			font-size: 11px;
+			font-size: 10px;
 			font-weight: 600;
 			text-transform: uppercase;
-			letter-spacing: 0.06em;
-			color: var(--qrjump-text-muted);
-			margin: 0 0 12px;
+			letter-spacing: 0.07em;
+			color: #aaa;
+			margin: 0 0 10px;
+		}
+
+		// Full-width button consistency
+		.components-button {
+			width: 100%;
+			justify-content: center;
+			& + .components-button { margin-top: 6px; }
 		}
 	}
 
@@ -994,9 +1017,9 @@
 		justify-content: space-between;
 
 		&__badge {
-			font-size: 12px;
+			font-size: 11px;
 			font-weight: 600;
-			padding: 3px 10px;
+			padding: 2px 9px;
 			border-radius: 20px;
 
 			&--active {
@@ -1004,26 +1027,28 @@
 				color: var(--qrjump-success);
 			}
 			&--inactive {
-				background: #f5f5f5;
+				background: #f0f0f0;
 				color: var(--qrjump-text-muted);
 			}
 		}
 
 		// Hide the WP ToggleControl label since we show our own badge.
 		.components-toggle-control .components-base-control__label { display: none; }
+		// Remove bottom margin from toggle wrapper.
+		.components-base-control { margin-bottom: 0; }
 	}
 
 	.qrjump-sidebar-stats {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 8px;
 	}
 
 	.qrjump-sidebar-stat {
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
-		font-size: 13px;
+		font-size: 12px;
 
 		&__label {
 			color: var(--qrjump-text-muted);
@@ -1038,6 +1063,8 @@
 				font-size: 11px;
 				font-weight: 400;
 				color: var(--qrjump-text-muted);
+				text-align: right;
+				max-width: 120px;
 			}
 		}
 	}
@@ -1045,19 +1072,7 @@
 	.qrjump-sidebar-actions {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-
-		// Make CopyButton fill the width like the other buttons.
-		.qrjump-copy-btn,
-		.qrjump-sidebar-action-btn {
-			width: 100%;
-			justify-content: center;
-		}
-
-		.components-button {
-			width: 100%;
-			justify-content: center;
-		}
+		gap: 6px;
 	}
 
 	// ─── Edit page scan stats ─────────────────────────────────────────────────
