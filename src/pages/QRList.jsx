@@ -13,6 +13,7 @@ import { Button, Spinner, SelectControl } from '@wordpress/components';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Pagination from '../components/Pagination';
+import BulkCreate from '../components/BulkCreate';
 
 const PER_PAGE = 20;
 
@@ -33,6 +34,7 @@ export default function QRList() {
 	const [ selected,    setSelected    ] = useState( [] );   // checked IDs
 	const [ bulkAction,  setBulkAction  ] = useState( '' );
 	const [ bulkWorking, setBulkWorking ] = useState( false );
+	const [ bulkCreateOpen, setBulkCreateOpen ] = useState( false );
 
 
 	const fetchCodes = useCallback( () => {
@@ -133,9 +135,14 @@ export default function QRList() {
 					QR Codes
 					{ total > 0 && <span className="qrjump-page-header__count">{ total }</span> }
 				</h1>
-				<Button variant="primary" onClick={ () => navigate( '/codes/new' ) }>
-					Add New
-				</Button>
+				<div style={ { display: 'flex', gap: 8 } }>
+					<Button variant="secondary" onClick={ () => setBulkCreateOpen( true ) }>
+						Bulk Create
+					</Button>
+					<Button variant="primary" onClick={ () => navigate( '/codes/new' ) }>
+						Add New
+					</Button>
+				</div>
 			</div>
 
 			{ /* ── Filters bar ── */ }
@@ -337,6 +344,13 @@ export default function QRList() {
 						onPageChange={ p => setPage( p ) }
 					/>
 				</div>
+			) }
+
+			{ bulkCreateOpen && (
+				<BulkCreate
+					onClose={ () => setBulkCreateOpen( false ) }
+					onCreated={ () => { fetchCodes(); setBulkCreateOpen( false ); } }
+				/>
 			) }
 		</>
 	);
