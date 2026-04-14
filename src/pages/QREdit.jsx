@@ -285,11 +285,11 @@ export default function QREdit() {
 				{ /* ── Form ── */ }
 				<form id="qrjump-code-form" className="qrjump-form" onSubmit={ handleSubmit }>
 
-					<div className="qrjump-form-section">
+					<div className="qrjump-form-section qrjump-form-section--primary">
 						<div className="qrjump-form-section__header">
-							<h2 className="qrjump-form-section__title">Basic Info</h2>
+							<h2 className="qrjump-form-section__title">Basic Details</h2>
 						</div>
-						<div className="qrjump-form-section__body">
+						<div className="qrjump-form-section__body qrjump-basic-details">
 							<div className="qrjump-form-row">
 								<TextControl
 									label="Title"
@@ -299,6 +299,7 @@ export default function QREdit() {
 									__nextHasNoMarginBottom
 								/>
 							</div>
+							<div className="qrjump-basic-details__divider" />
 							<div className="qrjump-form-row">
 								<SelectControl
 									label="Destination type"
@@ -320,15 +321,12 @@ export default function QREdit() {
 
 							{ form.settings.destination_type === 'vcard' ? (
 								<div className="qrjump-vcard-editor">
-
-									{ /* ── Mode switcher ── */ }
 									<div className="qrjump-vcard-mode-bar">
 										<button
 											type="button"
 											className={ `qrjump-vcard-mode-btn${ form.settings.vcard_mode === 'builder' ? ' qrjump-vcard-mode-btn--active' : '' }` }
 											onClick={ () => {
 												if ( form.settings.vcard_mode === 'builder' ) return;
-												// Raw → Builder: warn if raw content exists.
 												if (
 													form.destination_url.trim() &&
 													! window.confirm(
@@ -345,7 +343,6 @@ export default function QREdit() {
 											className={ `qrjump-vcard-mode-btn${ form.settings.vcard_mode !== 'builder' ? ' qrjump-vcard-mode-btn--active' : '' }` }
 											onClick={ () => {
 												if ( form.settings.vcard_mode !== 'builder' ) return;
-												// Builder → Raw: pre-populate textarea with current preview.
 												setField( 'destination_url', generateVCardPreview( form.settings.vcard_data ) );
 												setSetting( 'vcard_mode', 'raw' );
 											} }
@@ -362,7 +359,7 @@ export default function QREdit() {
 									) : (
 										<div className="qrjump-form-row">
 											<TextareaControl
-												label="vCard / Text content"
+												label="Content"
 												value={ form.destination_url }
 												onChange={ val => setField( 'destination_url', val ) }
 												rows={ 8 }
@@ -376,7 +373,7 @@ export default function QREdit() {
 							) : (
 								<div className="qrjump-form-row">
 									<TextControl
-										label="Destination URL"
+										label="URL"
 										value={ form.destination_url }
 										onChange={ val => setField( 'destination_url', val ) }
 										type="url"

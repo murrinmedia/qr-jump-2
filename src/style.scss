@@ -460,32 +460,65 @@
 		background: var(--qrjump-surface);
 		border-radius: var(--qrjump-radius);
 		box-shadow: var(--qrjump-shadow);
-		border: 1px solid var(--qrjump-border);
+		border: 1px solid #e8e8e8;
 		margin-bottom: 14px;
 
 		&__header {
 			padding: 13px 20px;
-			border-bottom: 1px solid var(--qrjump-border-light);
+			border-bottom: 1px solid #f0f0f0;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			gap: 12px;
 
-			// Allow WP ToggleControl inside the header without the extra margin.
 			.components-toggle-control { margin: 0; }
 			.components-base-control__label { font-size: 12px; color: var(--qrjump-text-muted); }
 		}
 
 		&__title {
-			font-size: 12px;
+			font-size: 11px;
 			font-weight: 700;
 			text-transform: uppercase;
 			letter-spacing: 0.06em;
-			color: var(--qrjump-text-muted);
+			color: #bbb;
 			margin: 0;
 		}
 
 		&__body { padding: 18px 20px; }
+
+		// ── Primary section (Basic Details) ──────────────────────────────────────
+		&--primary {
+			border-color: #dde3ec;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+
+			.qrjump-form-section__header {
+				padding: 16px 20px;
+				border-bottom-color: #eef0f4;
+				background: #fafbfd;
+				border-radius: var(--qrjump-radius) var(--qrjump-radius) 0 0;
+			}
+
+			.qrjump-form-section__title {
+				font-size: 13px;
+				font-weight: 700;
+				text-transform: none;
+				letter-spacing: 0;
+				color: var(--qrjump-text);
+			}
+
+			.qrjump-form-section__body {
+				padding: 20px 20px 22px;
+			}
+		}
+	}
+
+	// Basic Details field grouping
+	.qrjump-basic-details {
+		&__divider {
+			height: 1px;
+			background: #f0f0f0;
+			margin: 16px 0;
+		}
 	}
 
 	.qrjump-form-row {
