@@ -28,6 +28,8 @@ class Settings {
 		'report_schedule'           => 'none',        // 'none' | 'daily' | 'weekly' | 'monthly'
 		'report_email'              => '',
 		'notify_rate_limit_minutes' => 5,
+		'brand_fg_colour'           => '#000000',     // Default foreground colour for new QR codes
+		'brand_bg_colour'           => '#ffffff',     // Default background colour for new QR codes
 	);
 
 	/**

@@ -95,6 +95,8 @@ class Admin {
 				'adminUrl'       => admin_url(),
 				'pluginUrl'      => QRJUMP_PLUGIN_URL,
 				'redirectPrefix' => Settings::get( 'redirect_prefix' ),
+				'brandFgColour'  => Settings::get( 'brand_fg_colour' ),
+				'brandBgColour'  => Settings::get( 'brand_bg_colour' ),
 			)
 		);
 	}
