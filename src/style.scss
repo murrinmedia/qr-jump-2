@@ -1289,6 +1289,81 @@
 		font-style: italic;
 	}
 
+	// ─── Data management ──────────────────────────────────────────────────────
+
+	.qrjump-data-subheading {
+		font-size: 13px;
+		font-weight: 600;
+		margin: 0 0 6px;
+		color: var(--qrjump-text);
+
+		&--danger { color: var(--qrjump-error); }
+	}
+
+	.qrjump-data-actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.qrjump-data-filename {
+		font-size: 12px;
+		color: var(--qrjump-text-muted);
+		font-family: monospace;
+	}
+
+	.qrjump-data-import-preview {
+		margin-top: 12px;
+		padding: 12px 14px;
+		background: var(--qrjump-accent-light);
+		border-radius: var(--qrjump-radius-sm);
+		display: flex;
+		align-items: center;
+		gap: 14px;
+
+		p { margin: 0; font-size: 13px; }
+	}
+
+	.qrjump-data-import-result {
+		margin-top: 12px;
+		padding: 10px 14px;
+		background: var(--qrjump-success-bg);
+		color: var(--qrjump-success);
+		border-radius: var(--qrjump-radius-sm);
+		font-size: 13px;
+	}
+
+	.qrjump-data-delete-confirm {
+		margin-top: 8px;
+
+		&__label {
+			font-size: 13px;
+			margin: 0 0 8px;
+		}
+
+		&__row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		&__input {
+			padding: 6px 10px;
+			border: 1px solid var(--qrjump-error);
+			border-radius: var(--qrjump-radius-sm);
+			font-size: 13px;
+			width: 140px;
+			font-family: monospace;
+
+			&:focus {
+				outline: 2px solid var(--qrjump-error);
+				outline-offset: 1px;
+			}
+		}
+	}
+
 	// ─── Recent activity list ─────────────────────────────────────────────────
 
 	.qrjump-activity-list {

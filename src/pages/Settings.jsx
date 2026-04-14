@@ -8,7 +8,7 @@
  *  - Scheduled reports
  */
 
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import {
 	Button,
 	TextControl,
@@ -25,6 +25,18 @@ export default function Settings() {
 	const [ saving,   setSaving   ] = useState( false );
 	const [ notice,   setNotice   ] = useState( null );
 
+	// Delete-all state.
+	const [ deletePhrase,    setDeletePhrase    ] = useState( '' );
+	const [ deleteConfirming, setDeleteConfirming ] = useState( false );
+	const [ deleting,        setDeleting        ] = useState( false );
+
+	// Import state.
+	const fileInputRef                            = useRef( null );
+	const [ importPayload,   setImportPayload   ] = useState( null );
+	const [ importFilename,  setImportFilename  ] = useState( '' );
+	const [ importing,       setImporting       ] = useState( false );
+	const [ importResult,    setImportResult    ] = useState( null );
+
 	useEffect( () => {
 		api.settings.get().then( data => {
 			setSettings( data );
@@ -38,6 +50,61 @@ export default function Settings() {
 
 	const isDirty = settings && original &&
 		JSON.stringify( settings ) !== JSON.stringify( original );
+
+	async function handleDeleteAll() {
+		setDeleting( true );
+		setNotice( null );
+		try {
+			await api.data.deleteAll();
+			setDeleteConfirming( false );
+			setDeletePhrase( '' );
+			setNotice( { type: 'success', message: 'All QR codes and scan data have been deleted.' } );
+			window.scrollTo( { top: 0, behavior: 'smooth' } );
+		} catch ( err ) {
+			setNotice( { type: 'error', message: err.message } );
+		} finally {
+			setDeleting( false );
+		}
+	}
+
+	function handleFileChange( e ) {
+		const file = e.target.files[ 0 ];
+		if ( ! file ) return;
+		setImportResult( null );
+		setImportPayload( null );
+		setImportFilename( file.name );
+		const reader = new FileReader();
+		reader.onload = ( ev ) => {
+			try {
+				const json = JSON.parse( ev.target.result );
+				if ( json._format !== 'qrjump-export' ) {
+					setNotice( { type: 'error', message: 'This file does not appear to be a QR Jump export.' } );
+					return;
+				}
+				setImportPayload( json );
+			} catch {
+				setNotice( { type: 'error', message: 'Could not parse the file. Make sure it is a valid QR Jump export.' } );
+			}
+		};
+		reader.readAsText( file );
+	}
+
+	async function handleImport() {
+		if ( ! importPayload ) return;
+		setImporting( true );
+		setNotice( null );
+		try {
+			const result = await api.data.import( importPayload );
+			setImportResult( result );
+			setImportPayload( null );
+			setImportFilename( '' );
+			if ( fileInputRef.current ) fileInputRef.current.value = '';
+		} catch ( err ) {
+			setNotice( { type: 'error', message: err.message } );
+		} finally {
+			setImporting( false );
+		}
+	}
 
 	async function handleSubmit( e ) {
 		e.preventDefault();
@@ -196,6 +263,122 @@ export default function Settings() {
 								/>
 							</div>
 						) }
+					</div>
+				</div>
+
+				{ /* ── Data management ── */ }
+				<div className="qrjump-form-section">
+					<div className="qrjump-form-section__header">
+						<h2 className="qrjump-form-section__title">Data Management</h2>
+					</div>
+					<div className="qrjump-form-section__body">
+
+						{ /* Export */ }
+						<h3 className="qrjump-data-subheading">Export</h3>
+						<p className="qrjump-help-text">
+							Download all your QR codes as a JSON file. Use "Codes + Scans" to include full scan history.
+						</p>
+						<div className="qrjump-data-actions">
+							<Button variant="secondary" onClick={ () => api.data.exportDownload( false ) }>
+								↓ Export Codes
+							</Button>
+							<Button variant="secondary" onClick={ () => api.data.exportDownload( true ) }>
+								↓ Export Codes + Scans
+							</Button>
+						</div>
+
+						{ /* Import */ }
+						<h3 className="qrjump-data-subheading" style={ { marginTop: 28 } }>Import</h3>
+						<p className="qrjump-help-text">
+							Import codes from a QR Jump export file. Codes whose slug already exists will be skipped.
+						</p>
+						<div className="qrjump-data-actions">
+							<input
+								ref={ fileInputRef }
+								type="file"
+								accept=".json,application/json"
+								style={ { display: 'none' } }
+								onChange={ handleFileChange }
+							/>
+							<Button variant="secondary" onClick={ () => fileInputRef.current?.click() }>
+								Choose File…
+							</Button>
+							{ importFilename && (
+								<span className="qrjump-data-filename">{ importFilename }</span>
+							) }
+						</div>
+						{ importPayload && (
+							<div className="qrjump-data-import-preview">
+								<p>
+									<strong>{ importPayload.codes?.length ?? 0 } code(s)</strong> found in file
+									{ importPayload._include_scans ? ' (includes scan history)' : '' }.
+									Ready to import.
+								</p>
+								<Button
+									variant="primary"
+									isBusy={ importing }
+									disabled={ importing }
+									onClick={ handleImport }
+								>
+									{ importing ? 'Importing…' : 'Import Now' }
+								</Button>
+							</div>
+						) }
+						{ importResult && (
+							<div className="qrjump-data-import-result">
+								✓ { importResult.codes_imported } code(s) imported
+								{ importResult.scans_imported > 0 ? ` · ${ importResult.scans_imported } scan(s) imported` : '' }
+								{ importResult.codes_skipped > 0 ? ` · ${ importResult.codes_skipped } skipped (slug already exists)` : '' }.
+							</div>
+						) }
+
+						{ /* Delete all */ }
+						<h3 className="qrjump-data-subheading qrjump-data-subheading--danger" style={ { marginTop: 28 } }>Danger Zone</h3>
+						<p className="qrjump-help-text">
+							Permanently delete <strong>all</strong> QR codes and their scan history. This cannot be undone.
+						</p>
+						{ ! deleteConfirming ? (
+							<Button
+								variant="secondary"
+								isDestructive
+								onClick={ () => setDeleteConfirming( true ) }
+							>
+								Delete All Data…
+							</Button>
+						) : (
+							<div className="qrjump-data-delete-confirm">
+								<p className="qrjump-data-delete-confirm__label">
+									Type <strong>DELETE</strong> to confirm:
+								</p>
+								<div className="qrjump-data-delete-confirm__row">
+									<input
+										type="text"
+										className="qrjump-data-delete-confirm__input"
+										value={ deletePhrase }
+										onChange={ e => setDeletePhrase( e.target.value ) }
+										placeholder="DELETE"
+										autoFocus
+									/>
+									<Button
+										variant="primary"
+										isDestructive
+										isBusy={ deleting }
+										disabled={ deleting || deletePhrase !== 'DELETE' }
+										onClick={ handleDeleteAll }
+									>
+										{ deleting ? 'Deleting…' : 'Confirm Delete' }
+									</Button>
+									<Button
+										variant="tertiary"
+										disabled={ deleting }
+										onClick={ () => { setDeleteConfirming( false ); setDeletePhrase( '' ); } }
+									>
+										Cancel
+									</Button>
+								</div>
+							</div>
+						) }
+
 					</div>
 				</div>
 

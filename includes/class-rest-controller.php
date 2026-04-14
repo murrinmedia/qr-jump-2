@@ -20,6 +20,9 @@
  * GET    /settings                  Plugin settings
  * POST   /settings                  Update plugin settings
  * POST   /slugs/validate            Check slug availability
+ * DELETE /data/delete-all           Delete all codes and scans (requires confirm="DELETE")
+ * GET    /data/export               Export all data as JSON (?include_scans=true)
+ * POST   /data/import               Import JSON produced by export endpoint
  * ──────────────────────────────────────────────────────────────────────
  *
  * @package QRJump
@@ -243,6 +246,49 @@ class REST_Controller {
 					'callback'            => array( $this, 'update_settings' ),
 					'permission_callback' => array( $this, 'admin_permissions' ),
 				),
+			)
+		);
+
+		// Data management — delete all, export, import.
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/data/delete-all',
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => array( $this, 'delete_all_data' ),
+				'permission_callback' => array( $this, 'admin_permissions' ),
+				'args'                => array(
+					'confirm' => array(
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/data/export',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'export_data' ),
+				'permission_callback' => array( $this, 'admin_permissions' ),
+				'args'                => array(
+					'include_scans' => array(
+						'default'           => false,
+						'sanitize_callback' => 'rest_sanitize_boolean',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/data/import',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'import_data' ),
+				'permission_callback' => array( $this, 'admin_permissions' ),
 			)
 		);
 
@@ -1504,6 +1550,201 @@ class REST_Controller {
 			'status'   => array( 'default' => 'all',    'sanitize_callback' => 'sanitize_text_field' ),
 			'orderby'  => array( 'default' => 'created_at', 'sanitize_callback' => 'sanitize_text_field' ),
 			'order'    => array( 'default' => 'DESC',   'sanitize_callback' => 'sanitize_text_field' ),
+		);
+	}
+
+	// =========================================================================
+	// Data management — delete all
+	// =========================================================================
+
+	/**
+	 * DELETE /data/delete-all
+	 *
+	 * Truncates both tables. Requires the body param `confirm` to equal "DELETE".
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function delete_all_data( \WP_REST_Request $request ) {
+		if ( 'DELETE' !== $request->get_param( 'confirm' ) ) {
+			return new \WP_Error(
+				'qrjump_confirm_required',
+				__( 'Confirmation phrase does not match.', 'qr-jump' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		global $wpdb;
+		$codes_table = $wpdb->prefix . 'qrjump_codes';
+		$scans_table = $wpdb->prefix . 'qrjump_scans';
+
+		$wpdb->query( "TRUNCATE TABLE {$scans_table}" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( "TRUNCATE TABLE {$codes_table}" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		return rest_ensure_response( array( 'deleted' => true ) );
+	}
+
+	// =========================================================================
+	// Data management — export
+	// =========================================================================
+
+	/**
+	 * GET /data/export
+	 *
+	 * Returns a JSON file download containing all codes and optionally all scans.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return void  (sends file directly, does not return a WP_REST_Response)
+	 */
+	public function export_data( \WP_REST_Request $request ): void {
+		global $wpdb;
+
+		$codes_table   = $wpdb->prefix . 'qrjump_codes';
+		$scans_table   = $wpdb->prefix . 'qrjump_scans';
+		$include_scans = (bool) $request->get_param( 'include_scans' );
+
+		$codes = $wpdb->get_results( "SELECT * FROM {$codes_table} ORDER BY id ASC", ARRAY_A );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		foreach ( $codes as &$code ) {
+			$code['settings'] = json_decode( $code['settings'] ?? '{}', true ) ?: array();
+			if ( $include_scans ) {
+				$code['scans'] = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+					$wpdb->prepare(
+						"SELECT scanned_at, ip_hash, user_agent, referrer, scan_type
+						 FROM {$scans_table}
+						 WHERE qr_code_id = %d
+						 ORDER BY scanned_at ASC",
+						(int) $code['id']
+					),
+					ARRAY_A
+				);
+			}
+		}
+		unset( $code );
+
+		$payload = array(
+			'_format'        => 'qrjump-export',
+			'_version'       => 1,
+			'_exported_at'   => gmdate( 'c' ),
+			'_include_scans' => $include_scans,
+			'codes'          => $codes,
+		);
+
+		$filename = 'qrjump-export-' . gmdate( 'Y-m-d' ) . ( $include_scans ? '-with-scans' : '' ) . '.json';
+		$json     = wp_json_encode( $payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Content-Length: ' . strlen( $json ) );
+		header( 'X-Content-Type-Options: nosniff' );
+		echo $json;  // phpcs:ignore WordPress.Security.EscapeOutput
+		exit;
+	}
+
+	// =========================================================================
+	// Data management — import
+	// =========================================================================
+
+	/**
+	 * POST /data/import
+	 *
+	 * Accepts a JSON body produced by export_data(). Inserts codes (skipping any
+	 * whose slug already exists) and their scans. Returns a result summary.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function import_data( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$body = $request->get_json_params();
+
+		if ( empty( $body['_format'] ) || 'qrjump-export' !== $body['_format'] ) {
+			return new \WP_Error(
+				'qrjump_invalid_format',
+				__( 'Invalid import file format.', 'qr-jump' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$codes_table = $wpdb->prefix . 'qrjump_codes';
+		$scans_table = $wpdb->prefix . 'qrjump_scans';
+		$codes       = (array) ( $body['codes'] ?? array() );
+		$now         = current_time( 'mysql', true );
+
+		$codes_imported = 0;
+		$codes_skipped  = 0;
+		$scans_imported = 0;
+
+		foreach ( $codes as $code ) {
+			$slug = sanitize_text_field( (string) ( $code['slug'] ?? '' ) );
+			if ( ! $slug ) {
+				++$codes_skipped;
+				continue;
+			}
+
+			// Skip if slug already exists.
+			$existing_id = $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare( "SELECT id FROM {$codes_table} WHERE slug = %s", $slug )
+			);
+
+			if ( $existing_id ) {
+				++$codes_skipped;
+				continue;
+			}
+
+			$settings = $code['settings'] ?? array();
+			if ( ! is_array( $settings ) ) {
+				$settings = array();
+			}
+
+			$wpdb->insert(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$codes_table,
+				array(
+					'title'           => sanitize_text_field( (string) ( $code['title'] ?? '' ) ),
+					'slug'            => $slug,
+					'destination_url' => esc_url_raw( (string) ( $code['destination_url'] ?? '' ) ),
+					'status'          => absint( $code['status'] ?? 1 ),
+					'redirect_type'   => in_array( (int) ( $code['redirect_type'] ?? 302 ), array( 301, 302 ), true ) ? (int) $code['redirect_type'] : 302,
+					'fg_colour'       => sanitize_text_field( (string) ( $code['fg_colour'] ?? '#000000' ) ),
+					'bg_colour'       => sanitize_text_field( (string) ( $code['bg_colour'] ?? '#ffffff' ) ),
+					'notes'           => sanitize_textarea_field( (string) ( $code['notes'] ?? '' ) ),
+					'settings'        => wp_json_encode( $settings ),
+					'created_at'      => sanitize_text_field( (string) ( $code['created_at'] ?? $now ) ),
+					'updated_at'      => $now,
+				),
+				array( '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+			);
+
+			$new_code_id = (int) $wpdb->insert_id;
+			++$codes_imported;
+
+			// Import scans if present.
+			foreach ( (array) ( $code['scans'] ?? array() ) as $scan ) {
+				$wpdb->insert(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+					$scans_table,
+					array(
+						'qr_code_id' => $new_code_id,
+						'scanned_at' => sanitize_text_field( (string) ( $scan['scanned_at'] ?? $now ) ),
+						'ip_hash'    => sanitize_text_field( (string) ( $scan['ip_hash'] ?? '' ) ),
+						'user_agent' => sanitize_text_field( (string) ( $scan['user_agent'] ?? '' ) ),
+						'referrer'   => sanitize_text_field( (string) ( $scan['referrer'] ?? '' ) ),
+						'scan_type'  => in_array( $scan['scan_type'] ?? 'unique', array( 'unique', 'repeat' ), true )
+							? $scan['scan_type']
+							: 'unique',
+					),
+					array( '%d', '%s', '%s', '%s', '%s', '%s' )
+				);
+				++$scans_imported;
+			}
+		}
+
+		return rest_ensure_response(
+			array(
+				'codes_imported' => $codes_imported,
+				'codes_skipped'  => $codes_skipped,
+				'scans_imported' => $scans_imported,
+			)
 		);
 	}
 

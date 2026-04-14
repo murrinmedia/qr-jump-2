@@ -153,4 +153,28 @@ export const api = {
 		validate: ( slug, excludeId = 0 ) =>
 			post( '/slugs/validate', { slug, exclude_id: excludeId } ),
 	},
+
+	data: {
+		/** Delete all codes and scans. confirm must equal "DELETE". */
+		deleteAll: () => del( '/data/delete-all?confirm=DELETE' ),
+
+		/**
+		 * Trigger a file download of the export JSON directly in the browser.
+		 * @param {boolean} includeScans
+		 */
+		exportDownload: ( includeScans = false ) => {
+			const qs = new URLSearchParams( {
+				_wpnonce:      nonce,
+				include_scans: includeScans ? '1' : '0',
+			} ).toString();
+			window.location.href = `${ apiUrl }/data/export?${ qs }`;
+		},
+
+		/**
+		 * Import a parsed JSON object (the contents of an export file).
+		 * @param {Object} payload
+		 * @returns {Promise<{ codes_imported: number, codes_skipped: number, scans_imported: number }>}
+		 */
+		import: ( payload ) => post( '/data/import', payload ),
+	},
 };
