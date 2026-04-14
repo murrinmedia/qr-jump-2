@@ -1,13 +1,7 @@
-# Node / React dev stuff
+# Node dependencies — never commit these
 node_modules/
-src/
 
-# Build tools / configs (not needed in plugin)
-package.json
-package-lock.json
-webpack.config.js
-
-# Temporary build folder (your zip prep folder)
+# Temporary build folder
 plugin-build/
 
 # OS junk
@@ -20,15 +14,11 @@ Thumbs.db
 # Environment files
 .env
 
-# VS Code (optional)
+# VS Code
 .vscode/
 
 # Mac zip junk
 __MACOSX/
 
-# Composer (optional choice)
-# If you KEEP vendor (recommended), DO NOT ignore it
-# vendor/
-
-# GitHub / misc
+# Zips
 *.zip
