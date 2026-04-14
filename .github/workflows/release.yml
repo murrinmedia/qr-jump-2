@@ -1,0 +1,59 @@
+name: Build & Release
+
+# Runs automatically when you publish a GitHub Release with a v* tag.
+# Produces qr-jump.zip and attaches it to the release.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Create plugin zip
+        run: |
+          mkdir -p qr-jump
+          rsync -r \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='src' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='webpack.config.js' \
+            --exclude='*.zip' \
+            --exclude='.DS_Store' \
+            --exclude='plugin-build' \
+            --exclude='migrate-from-v1.sql' \
+            . qr-jump/
+          zip -r qr-jump.zip qr-jump/
+
+      - name: Attach zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: qr-jump.zip
