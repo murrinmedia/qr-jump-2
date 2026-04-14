@@ -466,7 +466,9 @@
 
 		&__header {
 			padding: 13px 20px;
-			border-bottom: 1px solid #f0f0f0;
+			border-bottom: 1px solid #eef0f4;
+			background: #fafbfd;
+			border-radius: var(--qrjump-radius) var(--qrjump-radius) 0 0;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
