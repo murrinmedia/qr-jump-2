@@ -33,8 +33,8 @@ const DEFAULTS = {
 	destination_url: '',
 	status:          1,
 	redirect_type:   302,
-	fg_colour:       window.qrJumpData?.brandFgColour || '#000000',
-	bg_colour:       window.qrJumpData?.brandBgColour || '#ffffff',
+	fg_colour:       '#000000',
+	bg_colour:       '#ffffff',
 	notes:           '',
 	settings: {
 		destination_type:          'url',
@@ -56,7 +56,11 @@ export default function QREdit() {
 	const navigate = useNavigate();
 	const isNew    = ! id;
 
-	const [ form,        setForm        ] = useState( DEFAULTS );
+	const [ form,        setForm        ] = useState( () => ( {
+		...DEFAULTS,
+		fg_colour: window.qrJumpData?.brandFgColour || '#000000',
+		bg_colour: window.qrJumpData?.brandBgColour || '#ffffff',
+	} ) );
 	const [ slugManual,  setSlugManual  ] = useState( false );
 	// Preserves destination content when switching types so nothing is lost.
 	const [ destBackup,  setDestBackup  ] = useState( { url: '', vcard: '' } );

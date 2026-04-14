@@ -115,6 +115,11 @@ export default function Settings() {
 			const saved = await api.settings.update( settings );
 			setSettings( saved );
 			setOriginal( saved );
+			// Keep window.qrJumpData in sync so SPA navigations pick up new brand colours.
+			if ( window.qrJumpData ) {
+				window.qrJumpData.brandFgColour = saved.brand_fg_colour;
+				window.qrJumpData.brandBgColour = saved.brand_bg_colour;
+			}
 			setNotice( { type: 'success', message: 'Settings saved.' } );
 			window.scrollTo( { top: 0, behavior: 'smooth' } );
 		} catch ( err ) {
