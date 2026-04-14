@@ -76,7 +76,7 @@ class Admin {
 				'qrjump-admin',
 				QRJUMP_PLUGIN_URL . 'build/style-index.css',
 				array( 'wp-components' ),
-				$asset['version']
+				QRJUMP_VERSION
 			);
 		}
 
