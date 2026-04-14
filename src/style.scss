@@ -860,6 +860,89 @@
 
 	// ─── Edit page two-column layout ──────────────────────────────────────────
 
+	// ─── Edit page sticky action bar ─────────────────────────────────────────────
+
+	.qrjump-edit-actionbar {
+		position: sticky;
+		top: 84px; // 32px WP admin bar + 52px plugin topbar
+		z-index: 90;
+		background: var(--qrjump-surface);
+		border-bottom: 1px solid var(--qrjump-border);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 10px 24px;
+		margin: 0 -24px 16px; // bleed to edges of content area
+		box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+
+		@media (max-width: 782px) { top: 116px; } // 46px WP bar + 52px topbar + 18px extra mobile
+		@media (max-width: 600px) {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 8px;
+		}
+
+		&__url {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			min-width: 0;
+			flex: 1;
+		}
+
+		&__url-text {
+			font-size: 12px;
+			font-family: monospace;
+			color: var(--qrjump-text-muted);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			min-width: 0;
+		}
+
+		&__open {
+			font-size: 12px;
+			color: var(--qrjump-accent);
+			text-decoration: none;
+			white-space: nowrap;
+			flex-shrink: 0;
+
+			&:hover { text-decoration: underline; }
+		}
+
+		&__actions {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-shrink: 0;
+		}
+
+		&__download {
+			font-size: 12px;
+			color: var(--qrjump-text-muted);
+			text-decoration: none;
+			padding: 5px 10px;
+			border: 1px solid var(--qrjump-border);
+			border-radius: var(--qrjump-radius-sm);
+			white-space: nowrap;
+			background: var(--qrjump-surface);
+
+			&:hover {
+				color: var(--qrjump-accent);
+				border-color: var(--qrjump-accent);
+			}
+		}
+
+		// Style the CopyButton to match the bar.
+		.qrjump-copy-btn {
+			font-size: 12px;
+			padding: 5px 10px;
+			border-radius: var(--qrjump-radius-sm);
+			flex-shrink: 0;
+		}
+	}
+
 	.qrjump-edit-layout {
 		display: grid;
 		grid-template-columns: 1fr 260px;
@@ -871,8 +954,7 @@
 		&__form  { min-width: 0; }
 
 		&__preview {
-			position: sticky;
-			top: 88px; // below WP admin bar (32px) + our topbar (52px) + gap (4px)
+			align-self: start;
 		}
 	}
 

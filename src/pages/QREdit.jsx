@@ -169,6 +169,59 @@ export default function QREdit() {
 	const previewShortUrl = isNew ? shortUrl : null;
 
 	return (
+		<div className="qrjump-edit-wrap">
+
+		{ /* ── Sticky action bar (saved codes only) ── */ }
+		{ ! isNew && (
+			<div className="qrjump-edit-actionbar">
+				<div className="qrjump-edit-actionbar__url">
+					{ shortUrl && (
+						<>
+							<span className="qrjump-edit-actionbar__url-text">{ shortUrl }</span>
+							<CopyButton text={ shortUrl } label="Copy" />
+							<a
+								href={ shortUrl }
+								target="_blank"
+								rel="noreferrer"
+								className="qrjump-edit-actionbar__open"
+							>
+								Open ↗
+							</a>
+						</>
+					) }
+				</div>
+				<div className="qrjump-edit-actionbar__actions">
+					{ previewCodeId && (
+						<>
+							<a
+								href={ api.codes.qrUrl( previewCodeId, { format: 'png', size: 1000, download: true } ) }
+								download={ `${ form.slug }.png` }
+								className="qrjump-edit-actionbar__download"
+							>
+								↓ PNG
+							</a>
+							<a
+								href={ api.codes.qrUrl( previewCodeId, { format: 'svg', download: true } ) }
+								download={ `${ form.slug }.svg` }
+								className="qrjump-edit-actionbar__download"
+							>
+								↓ SVG
+							</a>
+						</>
+					) }
+					<Button
+						variant="primary"
+						type="submit"
+						form="qrjump-code-form"
+						isBusy={ saving }
+						disabled={ saving }
+					>
+						{ saving ? 'Saving…' : 'Save Changes' }
+					</Button>
+				</div>
+			</div>
+		) }
+
 		<div className="qrjump-edit-layout">
 
 			{ /* ── Left: form + stats ── */ }
@@ -695,6 +748,8 @@ export default function QREdit() {
 				) }
 
 			</div>
+
+		</div>
 
 		</div>
 	);
