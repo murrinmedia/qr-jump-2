@@ -1235,6 +1235,14 @@ class REST_Controller {
 			'notify_rate_limit_minutes' => static function ( $v ) {
 				return max( 1, absint( $v ) );
 			},
+			'brand_fg_colour'           => static function ( $v ) {
+				$v = strtolower( sanitize_text_field( (string) $v ) );
+				return preg_match( '/^#[0-9a-f]{6}$/', $v ) ? $v : '#000000';
+			},
+			'brand_bg_colour'           => static function ( $v ) {
+				$v = strtolower( sanitize_text_field( (string) $v ) );
+				return preg_match( '/^#[0-9a-f]{6}$/', $v ) ? $v : '#ffffff';
+			},
 		);
 
 		foreach ( $sanitizers as $key => $fn ) {
