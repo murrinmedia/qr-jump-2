@@ -65,6 +65,9 @@ export default function QREdit() {
 	const [ stats,       setStats       ] = useState( null );   // inline totals
 	const [ fullStats,   setFullStats   ] = useState( null );   // chart + hourly + referrers
 	const [ statsLoading, setStatsLoading ] = useState( false );
+	const [ notesOpen,   setNotesOpen   ] = useState( false );
+	const [ notifOpen,   setNotifOpen   ] = useState( false );
+	const [ vcardPreviewOpen, setVcardPreviewOpen ] = useState( false );
 
 	const prefix  = window.qrJumpData?.redirectPrefix || 'qr';
 	const homeUrl = ( window.qrJumpData?.homeUrl || '' ).replace( /\/$/, '' );
@@ -300,7 +303,7 @@ export default function QREdit() {
 								/>
 							</div>
 							<div className="qrjump-basic-details__divider" />
-							<div className="qrjump-form-row">
+							<div className="qrjump-destination-control">
 								<SelectControl
 									label="Destination type"
 									value={ form.settings.destination_type }
@@ -317,11 +320,8 @@ export default function QREdit() {
 									} }
 									__nextHasNoMarginBottom
 								/>
-							</div>
-
-							{ form.settings.destination_type === 'vcard' ? (
-								<div className="qrjump-vcard-editor">
-									<div className="qrjump-vcard-mode-bar">
+								{ form.settings.destination_type === 'vcard' && (
+									<div className="qrjump-vcard-mode-bar qrjump-vcard-mode-bar--inline">
 										<button
 											type="button"
 											className={ `qrjump-vcard-mode-btn${ form.settings.vcard_mode === 'builder' ? ' qrjump-vcard-mode-btn--active' : '' }` }
@@ -350,7 +350,11 @@ export default function QREdit() {
 											Raw
 										</button>
 									</div>
+								) }
+							</div>
 
+							{ form.settings.destination_type === 'vcard' ? (
+								<div className="qrjump-vcard-editor">
 									{ form.settings.vcard_mode === 'builder' ? (
 										<VCardBuilder
 											data={ form.settings.vcard_data }
@@ -386,10 +390,11 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					<div className="qrjump-form-section">
-						<div className="qrjump-form-section__header">
-							<h2 className="qrjump-form-section__title">Short URL</h2>
-							{ isNew && (
+					{ /* Short URL — only show slug input for NEW codes; existing codes show URL in top bar */ }
+					{ isNew && (
+						<div className="qrjump-form-section">
+							<div className="qrjump-form-section__header">
+								<h2 className="qrjump-form-section__title">Short URL</h2>
 								<ToggleControl
 									label="Set slug manually"
 									checked={ slugManual }
@@ -399,47 +404,34 @@ export default function QREdit() {
 									} }
 									__nextHasNoMarginBottom
 								/>
-							) }
-						</div>
-						<div className="qrjump-form-section__body">
-							{ ! isNew ? (
-								<>
+							</div>
+							<div className="qrjump-form-section__body">
+								{ slugManual ? (
+									<>
+										<div className="qrjump-form-row">
+											<label className="qrjump-label">Slug</label>
+											<SlugInput
+												value={ form.slug }
+												onChange={ val => setField( 'slug', val ) }
+												excludeId={ 0 }
+											/>
+										</div>
+										{ shortUrl && (
+											<div className="qrjump-short-url-preview">
+												<span className="qrjump-short-url-preview__label">Short URL</span>
+												<strong className="qrjump-short-url-preview__url">{ shortUrl }</strong>
+												<CopyButton text={ shortUrl } label="Copy" />
+											</div>
+										) }
+									</>
+								) : (
 									<p className="qrjump-help-text">
-										The slug is permanent and cannot be changed after creation.
+										A unique slug will be generated automatically when you save.
 									</p>
-									{ shortUrl && (
-										<div className="qrjump-short-url-preview">
-											<span className="qrjump-short-url-preview__label">Short URL</span>
-											<strong className="qrjump-short-url-preview__url">{ shortUrl }</strong>
-											<CopyButton text={ shortUrl } label="Copy" />
-										</div>
-									) }
-								</>
-							) : slugManual ? (
-								<>
-									<div className="qrjump-form-row">
-										<label className="qrjump-label">Slug</label>
-										<SlugInput
-											value={ form.slug }
-											onChange={ val => setField( 'slug', val ) }
-											excludeId={ 0 }
-										/>
-									</div>
-									{ shortUrl && (
-										<div className="qrjump-short-url-preview">
-											<span className="qrjump-short-url-preview__label">Short URL</span>
-											<strong className="qrjump-short-url-preview__url">{ shortUrl }</strong>
-											<CopyButton text={ shortUrl } label="Copy" />
-										</div>
-									) }
-								</>
-							) : (
-								<p className="qrjump-help-text">
-									A unique slug will be generated automatically when you save.
-								</p>
-							) }
+								) }
+							</div>
 						</div>
-					</div>
+					) }
 
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">
@@ -517,71 +509,98 @@ export default function QREdit() {
 						</div>
 					</div>
 
-					<div className="qrjump-form-section">
-						<div className="qrjump-form-section__header">
+					{ /* Notes — collapsible */ }
+					<div className="qrjump-form-section qrjump-form-section--collapsible">
+						<button
+							type="button"
+							className="qrjump-form-section__header qrjump-form-section__header--btn"
+							onClick={ () => setNotesOpen( o => ! o ) }
+							aria-expanded={ notesOpen }
+						>
 							<h2 className="qrjump-form-section__title">Notes</h2>
-						</div>
-						<div className="qrjump-form-section__body">
-							<TextareaControl
-								label="Internal notes"
-								value={ form.notes }
-								onChange={ val => setField( 'notes', val ) }
-								rows={ 3 }
-								placeholder="Internal notes about this QR code…"
-								__nextHasNoMarginBottom
-							/>
-						</div>
+							<span className="qrjump-form-section__chevron">{ notesOpen ? '▲' : '▼' }</span>
+						</button>
+						{ notesOpen && (
+							<div className="qrjump-form-section__body">
+								<TextareaControl
+									label="Internal notes"
+									value={ form.notes }
+									onChange={ val => setField( 'notes', val ) }
+									rows={ 3 }
+									placeholder="Internal notes about this QR code…"
+									__nextHasNoMarginBottom
+								/>
+							</div>
+						) }
 					</div>
 
-					<div className="qrjump-form-section">
-						<div className="qrjump-form-section__header">
+					{ /* Scan Notifications — collapsible */ }
+					<div className="qrjump-form-section qrjump-form-section--collapsible">
+						<button
+							type="button"
+							className="qrjump-form-section__header qrjump-form-section__header--btn"
+							onClick={ () => setNotifOpen( o => ! o ) }
+							aria-expanded={ notifOpen }
+						>
 							<h2 className="qrjump-form-section__title">Scan Notifications</h2>
-							<ToggleControl
-								label="Email me on scan"
-								checked={ form.settings.notify_on_scan }
-								onChange={ val => setSetting( 'notify_on_scan', val ) }
-								__nextHasNoMarginBottom
-							/>
-						</div>
-						{ form.settings.notify_on_scan && (
+							<div className="qrjump-form-section__header-right">
+								{ form.settings.notify_on_scan && (
+									<span className="qrjump-form-section__badge">On</span>
+								) }
+								<span className="qrjump-form-section__chevron">{ notifOpen ? '▲' : '▼' }</span>
+							</div>
+						</button>
+						{ notifOpen && (
 							<div className="qrjump-form-section__body">
 								<div className="qrjump-form-row">
-									<TextControl
-										label="Notification email"
-										value={ form.settings.notify_email }
-										onChange={ val => setSetting( 'notify_email', val ) }
-										type="email"
-										placeholder="Leave blank to use site admin email"
+									<ToggleControl
+										label="Email me on scan"
+										checked={ form.settings.notify_on_scan }
+										onChange={ val => setSetting( 'notify_on_scan', val ) }
 										__nextHasNoMarginBottom
 									/>
 								</div>
-								<div className="qrjump-form-row">
-									<TextControl
-										label="Notify every X scans"
-										value={ String( form.settings.notify_every_x_scans ) }
-										onChange={ val =>
-											setSetting( 'notify_every_x_scans', Math.max( 1, parseInt( val ) || 1 ) )
-										}
-										type="number"
-										min={ 1 }
-										help="Set to 1 to be notified on every scan, 10 to be notified every 10th scan, etc."
-										__nextHasNoMarginBottom
-									/>
-								</div>
-								{ form.settings.notify_every_x_scans <= 1 && (
-									<div className="qrjump-form-row">
-										<TextControl
-											label="Rate limit (minutes between emails)"
-											value={ String( form.settings.notify_rate_limit_minutes ) }
-											onChange={ val =>
-												setSetting( 'notify_rate_limit_minutes', Math.max( 1, parseInt( val ) || 1 ) )
-											}
-											type="number"
-											min={ 1 }
-											help="Only used when notifying on every scan. Overrides the global default set in Settings."
-											__nextHasNoMarginBottom
-										/>
-									</div>
+								{ form.settings.notify_on_scan && (
+									<>
+										<div className="qrjump-form-row">
+											<TextControl
+												label="Notification email"
+												value={ form.settings.notify_email }
+												onChange={ val => setSetting( 'notify_email', val ) }
+												type="email"
+												placeholder="Leave blank to use site admin email"
+												__nextHasNoMarginBottom
+											/>
+										</div>
+										<div className="qrjump-form-row">
+											<TextControl
+												label="Notify every X scans"
+												value={ String( form.settings.notify_every_x_scans ) }
+												onChange={ val =>
+													setSetting( 'notify_every_x_scans', Math.max( 1, parseInt( val ) || 1 ) )
+												}
+												type="number"
+												min={ 1 }
+												help="Set to 1 to be notified on every scan, 10 to be notified every 10th scan, etc."
+												__nextHasNoMarginBottom
+											/>
+										</div>
+										{ form.settings.notify_every_x_scans <= 1 && (
+											<div className="qrjump-form-row">
+												<TextControl
+													label="Rate limit (minutes between emails)"
+													value={ String( form.settings.notify_rate_limit_minutes ) }
+													onChange={ val =>
+														setSetting( 'notify_rate_limit_minutes', Math.max( 1, parseInt( val ) || 1 ) )
+													}
+													type="number"
+													min={ 1 }
+													help="Only used when notifying on every scan. Overrides the global default set in Settings."
+													__nextHasNoMarginBottom
+												/>
+											</div>
+										) }
+									</>
 								) }
 							</div>
 						) }
@@ -606,7 +625,9 @@ export default function QREdit() {
 								) : fullStats?.daily?.length > 0 ? (
 									<ScanChart data={ fullStats.daily } />
 								) : (
-									<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No scan data yet.</p>
+									<div className="qrjump-empty-state">
+										<p>No scans yet — share your QR code to start tracking activity.</p>
+									</div>
 								) }
 							</div>
 						</div>
@@ -622,7 +643,9 @@ export default function QREdit() {
 								) : fullStats?.hourly?.length > 0 ? (
 									<HourChart data={ fullStats.hourly } />
 								) : (
-									<p style={ { color: 'var(--qrjump-text-muted)', margin: 0 } }>No data yet.</p>
+									<div className="qrjump-empty-state">
+										<p>No scan data yet.</p>
+									</div>
 								) }
 							</div>
 						</div>
@@ -644,9 +667,9 @@ export default function QREdit() {
 					slug={ form.slug || 'qr-code' }
 				/>
 
-				{ /* Save (new codes only — existing codes use the top bar) / Delete */ }
-				<div className="qrjump-sidebar-panel">
-					{ isNew && (
+				{ /* Save button — new codes only (existing codes save via top bar) */ }
+				{ isNew && (
+					<div className="qrjump-sidebar-panel">
 						<Button
 							variant="primary"
 							type="submit"
@@ -657,22 +680,8 @@ export default function QREdit() {
 						>
 							{ saving ? 'Saving…' : 'Create QR Code' }
 						</Button>
-					) }
-					{ ! isNew && (
-						<Button
-							variant="tertiary"
-							isDestructive
-							style={ { width: '100%', justifyContent: 'center' } }
-							onClick={ async () => {
-								if ( ! window.confirm( 'Delete this QR code and all its scan history? This cannot be undone.' ) ) return;
-								await api.codes.delete( Number( id ) );
-								navigate( '/codes' );
-							} }
-						>
-							Delete code
-						</Button>
-					) }
-				</div>
+					</div>
+				) }
 
 				{ ! isNew && (
 					<>
@@ -730,14 +739,26 @@ export default function QREdit() {
 								>
 									Open Destination ↗
 								</Button>
-								<Button
-									variant="tertiary"
-									isDestructive
-									style={ { width: '100%', justifyContent: 'center' } }
-									onClick={ handleResetScans }
-								>
-									Reset Stats
-								</Button>
+								<div className="qrjump-sidebar-danger">
+									<button
+										type="button"
+										className="qrjump-sidebar-danger-btn"
+										onClick={ handleResetScans }
+									>
+										Reset Stats
+									</button>
+									<button
+										type="button"
+										className="qrjump-sidebar-danger-btn"
+										onClick={ async () => {
+											if ( ! window.confirm( 'Delete this QR code and all its scan history? This cannot be undone.' ) ) return;
+											await api.codes.delete( Number( id ) );
+											navigate( '/codes' );
+										} }
+									>
+										Delete Code
+									</button>
+								</div>
 							</div>
 						</div>
 					</>

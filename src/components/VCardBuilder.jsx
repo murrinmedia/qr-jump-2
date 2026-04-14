@@ -28,10 +28,10 @@ export const EMPTY_VCARD_DATA = {
 export default function VCardBuilder( { data = {}, onChange } ) {
 	const d = { ...EMPTY_VCARD_DATA, ...data };
 
-	// Track whether the user has manually set full_name so auto-derive stops.
 	const [ fullNameManual, setFullNameManual ] = useState(
 		!! d.full_name && d.full_name !== ( d.first_name + ' ' + d.last_name ).trim()
 	);
+	const [ previewOpen, setPreviewOpen ] = useState( false );
 
 	function set( key, value ) {
 		const next = { ...d, [ key ]: value };
@@ -213,19 +213,34 @@ export default function VCardBuilder( { data = {}, onChange } ) {
 				</div>
 			</div>
 
-			{ /* ── Generated preview ── */ }
+			{ /* ── Generated preview — collapsible ── */ }
 			<div className="qrjump-vcard-section qrjump-vcard-section--preview">
-				<span className="qrjump-vcard-section__title">Generated vCard preview</span>
-				<textarea
-					className="qrjump-vcard-preview"
-					readOnly
-					value={ preview }
-					rows={ Math.min( 12, preview.split( '\n' ).length + 1 ) }
-					aria-label="Generated vCard preview"
-				/>
-				<p className="qrjump-help-text">
-					Read-only preview. Photo data is embedded by the server on save — it will not appear here.
-				</p>
+				<button
+					type="button"
+					className="qrjump-vcard-preview-toggle"
+					onClick={ () => setPreviewOpen( o => ! o ) }
+					aria-expanded={ previewOpen }
+				>
+					<span className="qrjump-vcard-section__title" style={ { marginBottom: 0 } }>
+						Generated vCard preview
+					</span>
+					<span className="qrjump-vcard-preview-toggle__chevron">{ previewOpen ? '▲' : '▼' }</span>
+				</button>
+				{ previewOpen && (
+					<>
+						<textarea
+							className="qrjump-vcard-preview"
+							readOnly
+							value={ preview }
+							rows={ Math.min( 12, preview.split( '\n' ).length + 1 ) }
+							aria-label="Generated vCard preview"
+							style={ { marginTop: 10 } }
+						/>
+						<p className="qrjump-help-text">
+							Read-only preview. Photo data is embedded by the server on save — it will not appear here.
+						</p>
+					</>
+				) }
 			</div>
 
 		</div>

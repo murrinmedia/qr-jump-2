@@ -521,6 +521,63 @@
 		}
 	}
 
+	// Destination type + mode bar grouped as one control
+	.qrjump-destination-control {
+		margin-bottom: 14px;
+
+		// WP SelectControl already has margin; remove bottom margin so mode bar sits flush
+		.components-base-control { margin-bottom: 0; }
+	}
+
+	// Collapsible sections
+	.qrjump-form-section--collapsible {
+		.qrjump-form-section__header--btn {
+			width: 100%;
+			background: none;
+			border: none;
+			cursor: pointer;
+			text-align: left;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 13px 20px;
+
+			&:hover { background: #fafafa; }
+		}
+
+		.qrjump-form-section__header-right {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.qrjump-form-section__chevron {
+			font-size: 9px;
+			color: #ccc;
+		}
+
+		.qrjump-form-section__badge {
+			font-size: 10px;
+			font-weight: 600;
+			padding: 1px 7px;
+			border-radius: 10px;
+			background: var(--qrjump-accent-light);
+			color: var(--qrjump-accent);
+		}
+	}
+
+	// Empty state
+	.qrjump-empty-state {
+		padding: 24px 16px;
+		text-align: center;
+
+		p {
+			margin: 0;
+			color: var(--qrjump-text-muted);
+			font-size: 13px;
+		}
+	}
+
 	.qrjump-form-row {
 		margin-bottom: 14px;
 		&:last-child { margin-bottom: 0; }
@@ -1108,6 +1165,32 @@
 		gap: 6px;
 	}
 
+	.qrjump-sidebar-danger {
+		display: flex;
+		gap: 12px;
+		justify-content: center;
+		padding-top: 8px;
+		border-top: 1px solid #f0f0f0;
+		margin-top: 4px;
+	}
+
+	.qrjump-sidebar-danger-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: 11px;
+		color: var(--qrjump-text-subtle);
+		cursor: pointer;
+		text-decoration: underline;
+		text-decoration-color: transparent;
+		transition: color 0.15s, text-decoration-color 0.15s;
+
+		&:hover {
+			color: var(--qrjump-error);
+			text-decoration-color: currentColor;
+		}
+	}
+
 	// ─── Edit page scan stats ─────────────────────────────────────────────────
 
 	.qrjump-edit-stats {
@@ -1221,6 +1304,13 @@
 		border-radius: var(--qrjump-radius-sm);
 		overflow: hidden;
 		margin-bottom: 16px;
+
+		// When used inline under the destination type dropdown
+		&--inline {
+			margin-top: 8px;
+			margin-bottom: 0;
+			display: flex;
+		}
 	}
 
 	.qrjump-vcard-mode-btn {
@@ -1257,40 +1347,63 @@
 	}
 
 	.qrjump-vcard-section {
-		padding: 16px;
-		border: 1px solid var(--qrjump-border);
+		padding: 12px 14px;
+		border: 1px solid #eaeaea;
 		border-bottom: none;
 		background: var(--qrjump-surface);
 
 		&:first-child { border-radius: var(--qrjump-radius-sm) var(--qrjump-radius-sm) 0 0; }
-		&:last-child  { border-bottom: 1px solid var(--qrjump-border); border-radius: 0 0 var(--qrjump-radius-sm) var(--qrjump-radius-sm); }
+		&:last-child  { border-bottom: 1px solid #eaeaea; border-radius: 0 0 var(--qrjump-radius-sm) var(--qrjump-radius-sm); }
 
 		&__title {
 			display: block;
-			font-size: 10px;
-			font-weight: 700;
+			font-size: 9.5px;
+			font-weight: 600;
 			text-transform: uppercase;
-			letter-spacing: 0.07em;
-			color: var(--qrjump-text-muted);
-			margin-bottom: 12px;
+			letter-spacing: 0.08em;
+			color: #c0c0c0;
+			margin-bottom: 10px;
 		}
 
 		.qrjump-form-row--cols-2,
 		.qrjump-form-row--cols-3 { margin-top: 0; }
 
-		&--preview { background: var(--qrjump-bg); }
+		&--preview {
+			background: #fafafa;
+			padding: 10px 14px;
+		}
+	}
+
+	.qrjump-vcard-preview-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		text-align: left;
+
+		&__chevron {
+			font-size: 9px;
+			color: #ccc;
+			flex-shrink: 0;
+		}
+
+		&:hover .qrjump-vcard-section__title { color: var(--qrjump-text-muted); }
 	}
 
 	.qrjump-vcard-preview {
 		width: 100%;
 		font-family: 'SFMono-Regular', Consolas, monospace;
-		font-size: 11px;
-		line-height: 1.6;
-		color: var(--qrjump-text-muted);
+		font-size: 10.5px;
+		line-height: 1.55;
+		color: #999;
 		background: #fff;
-		border: 1px solid var(--qrjump-border);
+		border: 1px solid #eaeaea;
 		border-radius: var(--qrjump-radius-sm);
-		padding: 10px 12px;
+		padding: 8px 10px;
 		resize: none;
 		margin-bottom: 6px;
 	}
