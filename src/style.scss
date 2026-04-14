@@ -887,6 +887,97 @@
 		}
 	}
 
+	// ─── Sidebar control panel panels ────────────────────────────────────────────
+
+	.qrjump-sidebar-panel {
+		background: var(--qrjump-surface);
+		border: 1px solid var(--qrjump-border);
+		border-radius: var(--qrjump-radius);
+		padding: 14px 16px;
+		margin-top: 12px;
+
+		&__title {
+			font-size: 11px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--qrjump-text-muted);
+			margin: 0 0 12px;
+		}
+	}
+
+	.qrjump-sidebar-status {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+
+		&__badge {
+			font-size: 12px;
+			font-weight: 600;
+			padding: 3px 10px;
+			border-radius: 20px;
+
+			&--active {
+				background: var(--qrjump-success-bg);
+				color: var(--qrjump-success);
+			}
+			&--inactive {
+				background: #f5f5f5;
+				color: var(--qrjump-text-muted);
+			}
+		}
+
+		// Hide the WP ToggleControl label since we show our own badge.
+		.components-toggle-control .components-base-control__label { display: none; }
+	}
+
+	.qrjump-sidebar-stats {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.qrjump-sidebar-stat {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		font-size: 13px;
+
+		&__label {
+			color: var(--qrjump-text-muted);
+		}
+
+		&__value {
+			font-weight: 600;
+			font-variant-numeric: tabular-nums;
+			color: var(--qrjump-text);
+
+			&--small {
+				font-size: 11px;
+				font-weight: 400;
+				color: var(--qrjump-text-muted);
+			}
+		}
+	}
+
+	.qrjump-sidebar-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+
+		// Make CopyButton fill the width like the other buttons.
+		.qrjump-copy-btn,
+		.qrjump-sidebar-action-btn {
+			width: 100%;
+			justify-content: center;
+		}
+
+		.components-button {
+			width: 100%;
+			justify-content: center;
+		}
+	}
+
 	// ─── Edit page scan stats ─────────────────────────────────────────────────
 
 	.qrjump-edit-stats {

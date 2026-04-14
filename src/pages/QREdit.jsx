@@ -32,8 +32,8 @@ const DEFAULTS = {
 	destination_url: '',
 	status:          1,
 	redirect_type:   302,
-	fg_colour:       '#000000',
-	bg_colour:       '#ffffff',
+	fg_colour:       window.qrJumpData?.brandFgColour || '#000000',
+	bg_colour:       window.qrJumpData?.brandBgColour || '#ffffff',
 	notes:           '',
 	settings: {
 		destination_type:          'url',
@@ -179,14 +179,7 @@ export default function QREdit() {
 						<h1 className="qrjump-page-header__title">
 							{ isNew ? 'New QR Code' : ( form.title || 'Edit QR Code' ) }
 						</h1>
-						{ ! isNew && (
-							<ToggleControl
-								label={ form.status ? 'Active' : 'Inactive' }
-								checked={ !! form.status }
-								onChange={ val => setField( 'status', val ? 1 : 0 ) }
-								__nextHasNoMarginBottom
-							/>
-						) }
+						{ /* Active toggle lives in sidebar for saved codes */ }
 					</div>
 					<Button variant="tertiary" onClick={ () => navigate( '/codes' ) }>
 						← Back
@@ -232,14 +225,6 @@ export default function QREdit() {
 									: 'No scans yet'
 								}
 							</span>
-							<Button
-								variant="tertiary"
-								size="small"
-								isDestructive
-								onClick={ handleResetScans }
-							>
-								Reset stats
-							</Button>
 						</div>
 					</div>
 				) }
@@ -597,8 +582,10 @@ export default function QREdit() {
 
 			</div>
 
-			{ /* ── Right: QR preview + actions (sticky) ── */ }
+			{ /* ── Right: control panel (sticky) ── */ }
 			<div className="qrjump-edit-layout__preview">
+
+				{ /* QR Preview */ }
 				<QRPreview
 					codeId={ previewCodeId }
 					shortUrl={ previewShortUrl }
@@ -606,7 +593,9 @@ export default function QREdit() {
 					bgColour={ form.bg_colour }
 					slug={ form.slug || 'qr-code' }
 				/>
-				<div className="qrjump-preview-actions">
+
+				{ /* Save / Delete */ }
+				<div className="qrjump-sidebar-panel">
 					<Button
 						variant="primary"
 						type="submit"
@@ -632,6 +621,79 @@ export default function QREdit() {
 						</Button>
 					) }
 				</div>
+
+				{ ! isNew && (
+					<>
+						{ /* Status */ }
+						<div className="qrjump-sidebar-panel">
+							<h3 className="qrjump-sidebar-panel__title">Status</h3>
+							<div className="qrjump-sidebar-status">
+								<span className={ `qrjump-sidebar-status__badge qrjump-sidebar-status__badge--${ form.status ? 'active' : 'inactive' }` }>
+									{ form.status ? 'Active' : 'Inactive' }
+								</span>
+								<ToggleControl
+									label=""
+									checked={ !! form.status }
+									onChange={ val => setField( 'status', val ? 1 : 0 ) }
+									__nextHasNoMarginBottom
+								/>
+							</div>
+						</div>
+
+						{ /* Quick Stats */ }
+						{ stats && (
+							<div className="qrjump-sidebar-panel">
+								<h3 className="qrjump-sidebar-panel__title">Quick Stats</h3>
+								<div className="qrjump-sidebar-stats">
+									<div className="qrjump-sidebar-stat">
+										<span className="qrjump-sidebar-stat__label">Total scans</span>
+										<span className="qrjump-sidebar-stat__value">{ Number( stats.total ).toLocaleString() }</span>
+									</div>
+									<div className="qrjump-sidebar-stat">
+										<span className="qrjump-sidebar-stat__label">Unique</span>
+										<span className="qrjump-sidebar-stat__value">{ Number( stats.unique ).toLocaleString() }</span>
+									</div>
+									<div className="qrjump-sidebar-stat">
+										<span className="qrjump-sidebar-stat__label">Last scan</span>
+										<span className="qrjump-sidebar-stat__value qrjump-sidebar-stat__value--small">
+											{ stats.last_scanned
+												? new Date( stats.last_scanned + 'Z' ).toLocaleString( [], { dateStyle: 'medium', timeStyle: 'short' } )
+												: '—'
+											}
+										</span>
+									</div>
+								</div>
+							</div>
+						) }
+
+						{ /* Actions */ }
+						{ shortUrl && (
+							<div className="qrjump-sidebar-panel">
+								<h3 className="qrjump-sidebar-panel__title">Actions</h3>
+								<div className="qrjump-sidebar-actions">
+									<CopyButton text={ shortUrl } label="Copy Short URL" className="qrjump-sidebar-action-btn" />
+									<Button
+										variant="secondary"
+										style={ { width: '100%', justifyContent: 'center' } }
+										onClick={ () => window.open( form.destination_url, '_blank', 'noreferrer' ) }
+										disabled={ ! form.destination_url }
+									>
+										Open Destination ↗
+									</Button>
+									<Button
+										variant="tertiary"
+										isDestructive
+										style={ { width: '100%', justifyContent: 'center' } }
+										onClick={ handleResetScans }
+									>
+										Reset Stats
+									</Button>
+								</div>
+							</div>
+						) }
+					</>
+				) }
+
 			</div>
 
 		</div>
