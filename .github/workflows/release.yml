@@ -1,11 +1,12 @@
 name: Build & Release
 
-# Runs automatically when you publish a GitHub Release with a v* tag.
-# Produces qr-jump.zip and attaches it to the release.
+# Runs automatically when you push a v* tag (e.g. git tag v1.0.4 && git push origin v1.0.4).
+# Creates a GitHub Release and attaches qr-jump.zip automatically.
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -53,7 +54,8 @@ jobs:
             . qr-jump/
           zip -r qr-jump.zip qr-jump/
 
-      - name: Attach zip to release
+      - name: Create release and attach zip
         uses: softprops/action-gh-release@v2
         with:
           files: qr-jump.zip
+          generate_release_notes: true
