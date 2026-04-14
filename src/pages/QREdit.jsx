@@ -6,7 +6,7 @@
  * separate stats screen required.
  */
 
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import {
 	Button,
 	TextControl,
@@ -25,6 +25,7 @@ import ScanChart from '../components/ScanChart';
 import HourChart from '../components/HourChart';
 import CopyButton from '../components/CopyButton';
 import VCardBuilder, { EMPTY_VCARD_DATA } from '../components/VCardBuilder';
+import Toast from '../components/Toast';
 
 const DEFAULTS = {
 	title:           '',
@@ -68,6 +69,36 @@ export default function QREdit() {
 	const [ notesOpen,   setNotesOpen   ] = useState( false );
 	const [ notifOpen,   setNotifOpen   ] = useState( false );
 	const [ vcardPreviewOpen, setVcardPreviewOpen ] = useState( false );
+	const [ savedForm,   setSavedForm   ] = useState( null );
+	const [ toast,       setToast       ] = useState( null );
+
+	// Track whether the form has unsaved changes.
+	const isDirty = isNew
+		? true
+		: savedForm !== null && JSON.stringify( form ) !== JSON.stringify( savedForm );
+
+	function showToast( message, type = 'success' ) {
+		setToast( { message, type } );
+	}
+
+	// CMD / Ctrl + S shortcut to save.
+	const isDirtyRef = useRef( isDirty );
+	const savingRef  = useRef( saving );
+	isDirtyRef.current = isDirty;
+	savingRef.current  = saving;
+
+	useEffect( () => {
+		function onKeyDown( e ) {
+			if ( ( e.metaKey || e.ctrlKey ) && e.key === 's' ) {
+				e.preventDefault();
+				if ( isDirtyRef.current && ! savingRef.current ) {
+					document.getElementById( 'qrjump-code-form' )?.requestSubmit();
+				}
+			}
+		}
+		document.addEventListener( 'keydown', onKeyDown );
+		return () => document.removeEventListener( 'keydown', onKeyDown );
+	}, [] );
 
 	const prefix  = window.qrJumpData?.redirectPrefix || 'qr';
 	const homeUrl = ( window.qrJumpData?.homeUrl || '' ).replace( /\/$/, '' );
@@ -80,11 +111,13 @@ export default function QREdit() {
 		// Load code data.
 		api.codes.get( id )
 			.then( code => {
-				setForm( {
+				const loaded = {
 					...DEFAULTS,
 					...code,
 					settings: { ...DEFAULTS.settings, ...( code.settings || {} ) },
-				} );
+				};
+				setForm( loaded );
+				setSavedForm( loaded );
 				setSlugManual( true );
 
 				if ( code.total_scans !== undefined ) {
@@ -139,8 +172,8 @@ export default function QREdit() {
 				navigate( `/codes/${ created.id }/edit` );
 			} else {
 				await api.codes.update( Number( id ), payload );
-				setNotice( { type: 'success', message: 'QR code saved.' } );
-				window.scrollTo( { top: 0, behavior: 'smooth' } );
+				setSavedForm( { ...form } );
+				showToast( 'QR code saved.' );
 			}
 		} catch ( err ) {
 			setNotice( { type: 'error', message: err.message } );
@@ -148,6 +181,13 @@ export default function QREdit() {
 		} finally {
 			setSaving( false );
 		}
+	}
+
+	// ── Duplicate ─────────────────────────────────────────────────────────────
+
+	async function handleDuplicate() {
+		const copy = await api.codes.duplicate( Number( id ) );
+		navigate( `/codes/${ copy.id }/edit` );
 	}
 
 	// ── Reset scans ───────────────────────────────────────────────────────────
@@ -174,6 +214,8 @@ export default function QREdit() {
 	return (
 		<div className="qrjump-edit-wrap">
 
+		<Toast toast={ toast } onDismiss={ () => setToast( null ) } />
+
 		{ /* ── Sticky action bar (saved codes only) ── */ }
 		{ ! isNew && (
 			<div className="qrjump-edit-actionbar">
@@ -194,6 +236,9 @@ export default function QREdit() {
 					</div>
 				) }
 				<div className="qrjump-edit-actionbar__actions">
+					{ isDirty && ! saving && (
+						<span className="qrjump-unsaved-indicator">Unsaved changes</span>
+					) }
 					{ previewCodeId && (
 						<div className="qrjump-edit-actionbar__downloads">
 							<a
@@ -217,7 +262,7 @@ export default function QREdit() {
 						type="submit"
 						form="qrjump-code-form"
 						isBusy={ saving }
-						disabled={ saving }
+						disabled={ saving || ! isDirty }
 					>
 						{ saving ? 'Saving…' : 'Save Changes' }
 					</Button>
@@ -666,6 +711,9 @@ export default function QREdit() {
 					bgColour={ form.bg_colour }
 					slug={ form.slug || 'qr-code' }
 				/>
+				{ isDirty && ! isNew && (
+					<p className="qrjump-qr-update-hint">QR updates after saving</p>
+				) }
 
 				{ /* Save button — new codes only (existing codes save via top bar) */ }
 				{ isNew && (
@@ -738,6 +786,13 @@ export default function QREdit() {
 									disabled={ ! form.destination_url }
 								>
 									Open Destination ↗
+								</Button>
+								<Button
+									variant="secondary"
+									style={ { width: '100%', justifyContent: 'center' } }
+									onClick={ handleDuplicate }
+								>
+									⧉ Duplicate
 								</Button>
 								<div className="qrjump-sidebar-danger">
 									<button

@@ -18,6 +18,7 @@ import {
 	Notice,
 } from '@wordpress/components';
 import { api } from '../api/client';
+import ColourPicker from '../components/ColourPicker';
 
 export default function Settings() {
 	const [ settings, setSettings ] = useState( null );
@@ -148,6 +149,30 @@ export default function Settings() {
 			) }
 
 			<form className="qrjump-form" onSubmit={ handleSubmit }>
+
+				{ /* ── Brand colours ── */ }
+				<div className="qrjump-form-section">
+					<div className="qrjump-form-section__header">
+						<h2 className="qrjump-form-section__title">Brand Colours</h2>
+					</div>
+					<div className="qrjump-form-section__body">
+						<p className="qrjump-help-text">
+							Default QR code colours applied when creating a new code. You can override them per code.
+						</p>
+						<div className="qrjump-form-row" style={ { display: 'flex', gap: 32, flexWrap: 'wrap' } }>
+							<ColourPicker
+								label="Foreground (QR dots)"
+								value={ settings.brand_fg_colour }
+								onChange={ val => setField( 'brand_fg_colour', val ) }
+							/>
+							<ColourPicker
+								label="Background"
+								value={ settings.brand_bg_colour }
+								onChange={ val => setField( 'brand_bg_colour', val ) }
+							/>
+						</div>
+					</div>
+				</div>
 
 				{ /* ── Redirect ── */ }
 				<div className="qrjump-form-section">

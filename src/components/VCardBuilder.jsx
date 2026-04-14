@@ -28,10 +28,11 @@ export const EMPTY_VCARD_DATA = {
 export default function VCardBuilder( { data = {}, onChange } ) {
 	const d = { ...EMPTY_VCARD_DATA, ...data };
 
-	const [ fullNameManual, setFullNameManual ] = useState(
+	const [ fullNameManual,    setFullNameManual    ] = useState(
 		!! d.full_name && d.full_name !== ( d.first_name + ' ' + d.last_name ).trim()
 	);
-	const [ previewOpen, setPreviewOpen ] = useState( false );
+	const [ previewOpen,       setPreviewOpen       ] = useState( false );
+	const [ websiteSuggestion, setWebsiteSuggestion ] = useState( '' );
 
 	function set( key, value ) {
 		const next = { ...d, [ key ]: value };
@@ -45,6 +46,24 @@ export default function VCardBuilder( { data = {}, onChange } ) {
 	function handleFullNameChange( value ) {
 		setFullNameManual( true );
 		onChange( { ...d, full_name: value } );
+	}
+
+	function handleEmailChange( value ) {
+		set( 'email', value );
+		// Suggest website from email domain if website is currently empty.
+		if ( ! d.website && value.includes( '@' ) ) {
+			const domain = value.split( '@' )[ 1 ];
+			if ( domain && domain.includes( '.' ) ) {
+				setWebsiteSuggestion( `https://${ domain }` );
+			}
+		} else {
+			setWebsiteSuggestion( '' );
+		}
+	}
+
+	function applyWebsiteSuggestion() {
+		onChange( { ...d, website: websiteSuggestion } );
+		setWebsiteSuggestion( '' );
 	}
 
 	function openMediaPicker() {
@@ -139,19 +158,40 @@ export default function VCardBuilder( { data = {}, onChange } ) {
 					<TextControl
 						label="Email"
 						value={ d.email }
-						onChange={ v => set( 'email', v ) }
+						onChange={ handleEmailChange }
 						type="email"
 						placeholder="name@example.com"
 						__nextHasNoMarginBottom
 					/>
-					<TextControl
-						label="Website"
-						value={ d.website }
-						onChange={ v => set( 'website', v ) }
-						type="url"
-						placeholder="https://example.com"
-						__nextHasNoMarginBottom
-					/>
+					<div>
+						<TextControl
+							label="Website"
+							value={ d.website }
+							onChange={ v => { set( 'website', v ); setWebsiteSuggestion( '' ); } }
+							type="url"
+							placeholder="https://example.com"
+							__nextHasNoMarginBottom
+						/>
+						{ websiteSuggestion && ! d.website && (
+							<div className="qrjump-vcard-suggest">
+								<span className="qrjump-vcard-suggest__text">Use { websiteSuggestion }?</span>
+								<button
+									type="button"
+									className="qrjump-vcard-suggest__btn"
+									onClick={ applyWebsiteSuggestion }
+								>
+									Apply
+								</button>
+								<button
+									type="button"
+									className="qrjump-vcard-suggest__dismiss"
+									onClick={ () => setWebsiteSuggestion( '' ) }
+								>
+									✕
+								</button>
+							</div>
+						) }
+					</div>
 				</div>
 			</div>
 

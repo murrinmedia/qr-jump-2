@@ -1698,6 +1698,119 @@
 		}
 	}
 
+	// ─── Toast notification ───────────────────────────────────────────────────
+
+	.qrjump-toast {
+		position: fixed;
+		top: 72px;
+		right: 24px;
+		z-index: 99999;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 16px;
+		border-radius: var(--qrjump-radius);
+		font-size: 13px;
+		font-weight: 500;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		animation: qrjump-toast-in 0.2s ease;
+
+		&--success {
+			background: var(--qrjump-success);
+			color: #fff;
+		}
+
+		&--error {
+			background: var(--qrjump-error);
+			color: #fff;
+		}
+
+		&__icon {
+			font-size: 14px;
+			font-weight: 700;
+		}
+	}
+
+	@keyframes qrjump-toast-in {
+		from { opacity: 0; transform: translateY(-6px); }
+		to   { opacity: 1; transform: translateY(0); }
+	}
+
+	// ─── Unsaved changes indicator ────────────────────────────────────────────
+
+	.qrjump-unsaved-indicator {
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--qrjump-text-muted);
+		white-space: nowrap;
+		padding: 0 4px;
+		opacity: 0.8;
+
+		&::before {
+			content: '●';
+			color: #e07b00;
+			margin-right: 5px;
+			font-size: 8px;
+			vertical-align: middle;
+		}
+	}
+
+	// ─── QR update hint ───────────────────────────────────────────────────────
+
+	.qrjump-qr-update-hint {
+		text-align: center;
+		font-size: 11px;
+		color: var(--qrjump-text-subtle);
+		margin: 4px 0 0;
+		padding: 0;
+	}
+
+	// ─── vCard website suggestion ─────────────────────────────────────────────
+
+	.qrjump-vcard-suggest {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 6px;
+		padding: 6px 10px;
+		background: var(--qrjump-accent-light);
+		border-radius: var(--qrjump-radius-sm);
+		font-size: 12px;
+
+		&__text {
+			flex: 1;
+			color: var(--qrjump-accent);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		&__btn {
+			padding: 2px 10px;
+			background: var(--qrjump-accent);
+			color: #fff;
+			border: none;
+			border-radius: var(--qrjump-radius-sm);
+			font-size: 11px;
+			font-weight: 600;
+			cursor: pointer;
+
+			&:hover { background: var(--qrjump-accent-hover); }
+		}
+
+		&__dismiss {
+			background: none;
+			border: none;
+			color: var(--qrjump-text-muted);
+			cursor: pointer;
+			font-size: 11px;
+			padding: 2px 4px;
+			line-height: 1;
+
+			&:hover { color: var(--qrjump-text); }
+		}
+	}
+
 	// ─── Recent activity list ─────────────────────────────────────────────────
 
 	.qrjump-activity-list {
