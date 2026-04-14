@@ -3,11 +3,11 @@
         'name' => 'qr-jump/qr-jump',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '4e0d2fe77ec33aa74f38db71a49272e994b0222e',
+        'reference' => 'fdaa597fcf90381a44da91e25c0ac6c86d24f331',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'dev' => true,
+        'dev' => false,
     ),
     'versions' => array(
         'bacon/bacon-qr-code' => array(
@@ -40,7 +40,7 @@
         'qr-jump/qr-jump' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '4e0d2fe77ec33aa74f38db71a49272e994b0222e',
+            'reference' => 'fdaa597fcf90381a44da91e25c0ac6c86d24f331',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
