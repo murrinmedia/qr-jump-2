@@ -272,6 +272,7 @@ export default function QRList() {
 												type="checkbox"
 												checked={ selected.includes( code.id ) }
 												onChange={ () => toggleOne( code.id ) }
+												onClick={ e => e.stopPropagation() }
 												aria-label={ `Select ${ code.title || code.slug }` }
 											/>
 										</td>
