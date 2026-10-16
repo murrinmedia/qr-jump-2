@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       QR Jump
  * Description:       Dynamic QR code generator with configurable short URLs, scan analytics, and a premium admin interface.
- * Version:           1.0.32
+ * Version:           1.0.33
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QRJUMP_VERSION',         '1.0.32' );
+define( 'QRJUMP_VERSION',         '1.0.33' );
 define( 'QRJUMP_DB_VERSION',      '1.0' );
 define( 'QRJUMP_PLUGIN_FILE',     __FILE__ );
 define( 'QRJUMP_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
@@ -29,11 +29,12 @@ if ( file_exists( QRJUMP_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 
 // GitHub update checker — allows WordPress to pull updates from GitHub releases.
 if ( class_exists( 'YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
-	\YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+$qrjump_updater = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
 		'https://github.com/murrinmedia/qr-jump-2/',
 		__FILE__,
 		'qr-jump'
 	);
+	$qrjump_updater->getVcsApi()->enableReleaseAssets();
 }
 
 /**
