@@ -37,6 +37,7 @@ export default function Settings() {
 	const [ importFilename,  setImportFilename  ] = useState( '' );
 	const [ importing,       setImporting       ] = useState( false );
 	const [ importResult,    setImportResult    ] = useState( null );
+	const [ importMode,      setImportMode      ] = useState( 'append' );
 
 	useEffect( () => {
 		api.settings.get().then( data => {
@@ -92,10 +93,11 @@ export default function Settings() {
 
 	async function handleImport() {
 		if ( ! importPayload ) return;
+		if ( importMode === 'overwrite' && ! window.confirm( 'This will permanently delete ALL existing QR codes and scan history on this site before importing. Continue?' ) ) return;
 		setImporting( true );
 		setNotice( null );
 		try {
-			const result = await api.data.import( importPayload );
+			const result = await api.data.import( { ...importPayload, mode: importMode } );
 			setImportResult( result );
 			setImportPayload( null );
 			setImportFilename( '' );
@@ -306,7 +308,7 @@ export default function Settings() {
 						{ /* Export */ }
 						<h3 className="qrjump-data-subheading">Export</h3>
 						<p className="qrjump-help-text">
-							Download all your QR codes as a JSON file. Use "Codes + Scans" to include full scan history.
+							Download all your QR codes and plugin settings as a JSON file. Use "Codes + Scans" to include full scan history.
 						</p>
 						<div className="qrjump-data-actions">
 							<Button variant="secondary" onClick={ () => api.data.exportDownload( false ) }>
@@ -320,7 +322,7 @@ export default function Settings() {
 						{ /* Import */ }
 						<h3 className="qrjump-data-subheading" style={ { marginTop: 28 } }>Import</h3>
 						<p className="qrjump-help-text">
-							Import codes from a QR Jump export file. Codes whose slug already exists will be skipped.
+							Import codes (and scan history, if included) from a QR Jump export file created on this or another site.
 						</p>
 						<div className="qrjump-data-actions">
 							<input
@@ -342,15 +344,37 @@ export default function Settings() {
 								<p>
 									<strong>{ importPayload.codes?.length ?? 0 } code(s)</strong> found in file
 									{ importPayload._include_scans ? ' (includes scan history)' : '' }.
-									Ready to import.
 								</p>
+								<fieldset className="qrjump-data-import-mode">
+									<label style={ { display: 'block', marginBottom: 6 } }>
+										<input
+											type="radio"
+											name="qrjump-import-mode"
+											value="append"
+											checked={ importMode === 'append' }
+											onChange={ () => setImportMode( 'append' ) }
+										/>{ ' ' }
+										<strong>Append</strong> — add to existing data (codes whose slug already exists are skipped)
+									</label>
+									<label style={ { display: 'block', marginBottom: 12 } }>
+										<input
+											type="radio"
+											name="qrjump-import-mode"
+											value="overwrite"
+											checked={ importMode === 'overwrite' }
+											onChange={ () => setImportMode( 'overwrite' ) }
+										/>{ ' ' }
+										<strong>Overwrite</strong> — delete all existing codes and scans first, then import (also replaces plugin settings)
+									</label>
+								</fieldset>
 								<Button
 									variant="primary"
 									isBusy={ importing }
 									disabled={ importing }
+									isDestructive={ importMode === 'overwrite' }
 									onClick={ handleImport }
 								>
-									{ importing ? 'Importing…' : 'Import Now' }
+									{ importing ? 'Importing…' : importMode === 'overwrite' ? 'Overwrite & Import' : 'Import Now' }
 								</Button>
 							</div>
 						) }

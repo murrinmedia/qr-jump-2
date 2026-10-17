@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -q -m 'Import: add append/overwrite modes; export and restore plugin settings *)"
+    ]
+  }
+}

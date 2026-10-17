@@ -1217,6 +1217,17 @@ class REST_Controller {
 			);
 		}
 
+		$this->save_settings( $body );
+
+		return rest_ensure_response( Settings::get_all() );
+	}
+
+	/**
+	 * Sanitize and persist any recognised settings present in $values.
+	 *
+	 * @param array<string, mixed> $values Key → raw value map.
+	 */
+	private function save_settings( array $values ): void {
 		$sanitizers = array(
 			'redirect_prefix'           => static function ( $v ) {
 				$v = strtolower( sanitize_text_field( (string) $v ) );
@@ -1246,12 +1257,10 @@ class REST_Controller {
 		);
 
 		foreach ( $sanitizers as $key => $fn ) {
-			if ( array_key_exists( $key, $body ) ) {
-				Settings::set( $key, $fn( $body[ $key ] ) );
+			if ( array_key_exists( $key, $values ) ) {
+				Settings::set( $key, $fn( $values[ $key ] ) );
 			}
 		}
-
-		return rest_ensure_response( Settings::get_all() );
 	}
 
 	// =========================================================================
@@ -1635,6 +1644,7 @@ class REST_Controller {
 			'_version'       => 1,
 			'_exported_at'   => gmdate( 'c' ),
 			'_include_scans' => $include_scans,
+			'settings'       => Settings::get_all(),
 			'codes'          => $codes,
 		);
 
@@ -1656,8 +1666,11 @@ class REST_Controller {
 	/**
 	 * POST /data/import
 	 *
-	 * Accepts a JSON body produced by export_data(). Inserts codes (skipping any
-	 * whose slug already exists) and their scans. Returns a result summary.
+	 * Accepts a JSON body produced by export_data() plus a `mode`:
+	 *   append    (default) — insert codes, skipping any whose slug already exists.
+	 *   overwrite — delete all existing codes and scans first, then import.
+	 * Scans are imported when present in the file; plugin settings are applied
+	 * only in overwrite mode. Returns a result summary.
 	 *
 	 * @param \WP_REST_Request $request
 	 * @return \WP_REST_Response|\WP_Error
@@ -1679,6 +1692,28 @@ class REST_Controller {
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
 		$codes       = (array) ( $body['codes'] ?? array() );
 		$now         = current_time( 'mysql', true );
+		$settings_imported = false;
+		$mode        = 'overwrite' === ( $body['mode'] ?? 'append' ) ? 'overwrite' : 'append';
+
+		if ( 'overwrite' === $mode ) {
+			// Never wipe existing data for an empty/unusable file.
+			if ( empty( $codes ) ) {
+				return new \WP_Error(
+					'qrjump_empty_import',
+					__( 'The import file contains no codes, so existing data was not overwritten.', 'qr-jump' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			$wpdb->query( "TRUNCATE TABLE {$scans_table}" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->query( "TRUNCATE TABLE {$codes_table}" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+			// Plugin settings travel with a full overwrite (never with an append).
+			if ( ! empty( $body['settings'] ) && is_array( $body['settings'] ) ) {
+				$this->save_settings( $body['settings'] );
+				$settings_imported = true;
+			}
+		}
 
 		$codes_imported = 0;
 		$codes_skipped  = 0;
@@ -1752,6 +1787,8 @@ class REST_Controller {
 				'codes_imported' => $codes_imported,
 				'codes_skipped'  => $codes_skipped,
 				'scans_imported' => $scans_imported,
+				'mode'           => $mode,
+				'settings_imported' => $settings_imported,
 			)
 		);
 	}
