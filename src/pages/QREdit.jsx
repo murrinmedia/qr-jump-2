@@ -365,6 +365,9 @@ export default function QREdit() {
 									value={ form.title }
 									onChange={ val => setField( 'title', val ) }
 									placeholder="e.g. Summer campaign flyer"
+									autoComplete="off"
+									data-lpignore="true"
+									data-1p-ignore="true"
 									__nextHasNoMarginBottom
 								/>
 							</div>
@@ -844,10 +847,14 @@ export default function QREdit() {
 								<Button
 									variant="secondary"
 									style={ { width: '100%', justifyContent: 'center' } }
-									onClick={ () => window.open( form.destination_url, '_blank', 'noreferrer' ) }
-									disabled={ ! form.destination_url }
+									onClick={ () => window.open(
+										form.settings.destination_type === 'vcard' ? shortUrl : form.destination_url,
+										'_blank',
+										'noreferrer'
+									) }
+									disabled={ form.settings.destination_type === 'vcard' ? ! shortUrl : ! form.destination_url }
 								>
-									Open Destination ↗
+									{ form.settings.destination_type === 'vcard' ? 'Open short link ↗' : 'Open Destination ↗' }
 								</Button>
 								<Button
 									variant="secondary"

@@ -2920,6 +2920,43 @@ body.toplevel_page_qr-jump #wpfooter { display: none; }
 		@media (max-width: 782px) { top: calc(46px + var(--qrjump-topbar-h) + 8px); }
 	}
 
+	// ── vCard Builder / Raw toggle: segmented control ────────────────────────
+
+	.qrjump-vcard-mode-bar {
+		display: inline-flex;
+		gap: 2px;
+		padding: 3px;
+		background: var(--qrjump-border-light);
+		border: 0;
+		border-radius: 10px;
+		overflow: visible;
+
+		&--inline { display: inline-flex; margin-top: 12px; }
+	}
+
+	.qrjump-vcard-mode-btn {
+		padding: 7px 18px;
+		border: 0;
+		border-radius: 8px;
+		font-size: 13px;
+		font-weight: 500;
+		background: transparent;
+		color: var(--qrjump-text-muted);
+
+		& + & { border-left: 0; }
+
+		&:not(&--active):hover { background: rgba(255, 255, 255, 0.6); color: var(--qrjump-text); }
+		&:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: 1px; }
+
+		&--active,
+		&--active:hover {
+			background: #fff;
+			color: var(--qrjump-text);
+			font-weight: 600;
+			box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1), 0 0 0 1px rgba(16, 24, 40, 0.04);
+		}
+	}
+
 	// ── Focus visibility for links in tables ─────────────────────────────────
 
 	a:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: 2px; border-radius: 4px; }
