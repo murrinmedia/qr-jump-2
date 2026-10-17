@@ -49,10 +49,10 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
-            --exclude='src' \
-            --exclude='package.json' \
-            --exclude='package-lock.json' \
-            --exclude='webpack.config.js' \
+            --exclude='/src' \
+            --exclude='/package.json' \
+            --exclude='/package-lock.json' \
+            --exclude='/webpack.config.js' \
             --exclude='*.zip' \
             --exclude='.DS_Store' \
             --exclude='plugin-build' \
@@ -64,6 +64,20 @@ jobs:
             --exclude='vendor/yahnis-elsts/plugin-update-checker/README.md' \
             . qr-jump/
           zip -r qr-jump.zip qr-jump/
+
+      - name: Verify zip contents
+        run: |
+          # Guard against exclude rules stripping files the plugin needs at runtime.
+          for f in \
+            qr-jump/qr-jump.php \
+            qr-jump/build/index.js \
+            qr-jump/vendor/autoload.php \
+            qr-jump/vendor/endroid/qr-code/src/Builder/Builder.php \
+            qr-jump/vendor/bacon/bacon-qr-code/src/Writer.php \
+            qr-jump/vendor/dasprid/enum/src/AbstractEnum.php; do
+            unzip -l qr-jump.zip | grep -q " $f$" || { echo "Missing from zip: $f"; exit 1; }
+          done
+          echo "Zip contents verified."
 
       - name: Create release and attach zip
         uses: softprops/action-gh-release@v2

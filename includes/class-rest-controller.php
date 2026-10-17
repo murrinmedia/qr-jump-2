@@ -1057,7 +1057,7 @@ class REST_Controller {
 
 		try {
 			$image_data = QR_Generator::generate( $short_url, $format, $fg_colour, $bg_colour, $size );
-		} catch ( \Exception $e ) {
+		} catch ( \Throwable $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ), 500 );
 		}
 
@@ -1107,7 +1107,7 @@ class REST_Controller {
 
 		try {
 			$image_data = QR_Generator::generate( $url, $format, $fg_colour, $bg_colour, $size );
-		} catch ( \Exception $e ) {
+		} catch ( \Throwable $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ), 500 );
 		}
 
