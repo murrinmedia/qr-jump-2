@@ -25,6 +25,28 @@ import { api } from '../api/client';
  *   slug?:     string,        Used only to derive download filename.
  * }} props
  */
+/**
+ * An <img> error carries no detail, so re-request the URL to find out why.
+ */
+function explainError( src, setErrorMsg ) {
+	setErrorMsg( '' );
+	fetch( src, { credentials: 'same-origin' } )
+		.then( async res => {
+			let message = '';
+			try {
+				const body = await res.json();
+				message = body?.data?.message || body?.message || '';
+			} catch ( e ) {
+				// Not JSON — the response was probably corrupt image data or an HTML error page.
+			}
+			if ( res.status === 403 ) {
+				message = 'Your session has expired — reload the page.';
+			}
+			setErrorMsg( message || `The server returned an unreadable image (HTTP ${ res.status }).` );
+		} )
+		.catch( () => setErrorMsg( 'Could not reach the server.' ) );
+}
+
 export default function QRPreview( { codeId, shortUrl, fgColour, bgColour, slug = 'qr-code' } ) {
 	const debouncedFg = useDebounce( fgColour, 600 );
 	const debouncedBg = useDebounce( bgColour, 600 );
@@ -32,6 +54,7 @@ export default function QRPreview( { codeId, shortUrl, fgColour, bgColour, slug 
 	const [ src,     setSrc     ] = useState( '' );
 	const [ loaded,  setLoaded  ] = useState( false );
 	const [ errored, setErrored ] = useState( false );
+	const [ errorMsg, setErrorMsg ] = useState( '' );
 
 	useEffect( () => {
 		setLoaded( false );
@@ -76,11 +99,11 @@ export default function QRPreview( { codeId, shortUrl, fgColour, bgColour, slug 
 							className="qrjump-qr-preview__img"
 							style={ { display: loaded ? 'block' : 'none' } }
 							onLoad={ () => { setLoaded( true ); setErrored( false ); } }
-							onError={ () => { setErrored( true ); setLoaded( false ); } }
+							onError={ () => { setErrored( true ); setLoaded( false ); explainError( src, setErrorMsg ); } }
 						/>
 						{ errored && (
 							<div className="qrjump-qr-preview__placeholder qrjump-qr-preview__placeholder--error">
-								<p>Preview unavailable.<br />Install Composer dependencies to enable QR generation.</p>
+								<p>Preview unavailable.<br />{ errorMsg || 'Could not load the QR image.' }</p>
 							</div>
 						) }
 					</>

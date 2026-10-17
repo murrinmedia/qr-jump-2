@@ -42,26 +42,37 @@ class QR_Generator {
 		string $bg_colour = '#ffffff',
 		int    $size      = 1000
 	): string {
-		if ( ! class_exists( Builder::class ) ) {
-			throw new \RuntimeException(
-				'endroid/qr-code is not installed. Run `composer install` from the plugin directory.'
-			);
+		// The bundled QR libraries emit PHP 8.4+ "implicit nullable" deprecation
+		// notices. On sites that display errors those notices would be written
+		// into the image stream and corrupt the PNG, so silence deprecations
+		// for the duration of the build only.
+		$previous_level = error_reporting();
+		error_reporting( $previous_level & ~( E_DEPRECATED | E_USER_DEPRECATED ) );
+
+		try {
+			if ( ! class_exists( Builder::class ) ) {
+				throw new \RuntimeException(
+					'endroid/qr-code is not installed. Run `composer install` from the plugin directory.'
+				);
+			}
+
+			$writer = 'svg' === $format ? new SvgWriter() : new PngWriter();
+
+			$result = Builder::create()
+				->writer( $writer )
+				->data( $url )
+				->encoding( new Encoding( 'UTF-8' ) )
+				->errorCorrectionLevel( new ErrorCorrectionLevelHigh() )
+				->size( $size )
+				->margin( 20 )
+				->foregroundColor( self::hex_to_color( $fg_colour ) )
+				->backgroundColor( self::hex_to_color( $bg_colour ) )
+				->build();
+
+			return $result->getString();
+		} finally {
+			error_reporting( $previous_level );
 		}
-
-		$writer = 'svg' === $format ? new SvgWriter() : new PngWriter();
-
-		$result = Builder::create()
-			->writer( $writer )
-			->data( $url )
-			->encoding( new Encoding( 'UTF-8' ) )
-			->errorCorrectionLevel( new ErrorCorrectionLevelHigh() )
-			->size( $size )
-			->margin( 20 )
-			->foregroundColor( self::hex_to_color( $fg_colour ) )
-			->backgroundColor( self::hex_to_color( $bg_colour ) )
-			->build();
-
-		return $result->getString();
 	}
 
 	/**

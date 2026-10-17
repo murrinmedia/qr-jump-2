@@ -1064,6 +1064,12 @@ class REST_Controller {
 		$mime     = QR_Generator::get_mime_type( $format );
 		$filename = sanitize_file_name( $code->slug . '.' . $format );
 
+		// Discard any stray output (notices, BOMs from other plugins) so it can't
+		// corrupt the image bytes.
+		while ( ob_get_level() > 0 ) {
+			ob_end_clean();
+		}
+
 		header( 'Content-Type: ' . $mime );
 		header( 'Content-Length: ' . strlen( $image_data ) );
 		header( 'Cache-Control: private, max-age=30' );
@@ -1103,6 +1109,10 @@ class REST_Controller {
 			$image_data = QR_Generator::generate( $url, $format, $fg_colour, $bg_colour, $size );
 		} catch ( \Exception $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ), 500 );
+		}
+
+		while ( ob_get_level() > 0 ) {
+			ob_end_clean();
 		}
 
 		header( 'Content-Type: ' . QR_Generator::get_mime_type( $format ) );
