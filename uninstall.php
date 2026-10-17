@@ -36,6 +36,7 @@ $options = array(
 	'qrjump_brand_fg_colour',
 	'qrjump_brand_bg_colour',
 	'qrjump_ip_header',
+	'qrjump_retention_days',
 	'qrjump_delete_data_on_uninstall',
 );
 

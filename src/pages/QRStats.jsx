@@ -66,6 +66,9 @@ export default function QRStats() {
 				<StatCard label="Total scans"  value={ stats.total        } />
 				<StatCard label="Unique"        value={ stats.unique_scans } />
 				<StatCard label="Repeat"        value={ stats.repeat_scans } />
+				{ stats.bot_scans > 0 && (
+					<StatCard label="Bot hits (excluded)" value={ stats.bot_scans } />
+				) }
 				<StatCard
 					label="Last scan"
 					value={ stats.last_scanned_at

@@ -119,6 +119,8 @@ class Redirect_Handler {
 			return;
 		}
 
+		$destination = $this->apply_query_params( $destination, $code_settings );
+
 		// Collect scan data before we send headers.
 		$scan_data = $this->build_scan_data( (int) $code->id );
 
@@ -143,7 +145,10 @@ class Redirect_Handler {
 		Scan_Logger::log( $scan_data );
 
 		// Queue notification (deferred via WP-Cron, never blocks this process).
-		Notification_Manager::maybe_schedule( (int) $code->id, $code_settings );
+		// Bots and link-preview fetchers never trigger notifications.
+		if ( empty( $scan_data['is_bot'] ) ) {
+			Notification_Manager::maybe_schedule( (int) $code->id, $code_settings );
+		}
 
 		exit;
 	}
@@ -226,6 +231,63 @@ class Redirect_Handler {
 	}
 
 	/**
+	 * Add incoming query-string parameters and configured UTM tags to the
+	 * destination.
+	 *
+	 * Only the query string is touched — the path and fragment are left
+	 * byte-for-byte as stored (see safe_destination() for why). Parameters
+	 * already present in the stored destination always win, so a visitor can't
+	 * override what the code's owner set.
+	 *
+	 * @param string               $destination   Validated destination URL.
+	 * @param array<string, mixed> $code_settings Decoded per-code settings.
+	 * @return string
+	 */
+	private function apply_query_params( string $destination, array $code_settings ): string {
+		$extra = array();
+
+		if ( ! empty( $code_settings['pass_query_string'] ) && ! empty( $_SERVER['QUERY_STRING'] ) ) {
+			parse_str( (string) $_SERVER['QUERY_STRING'], $incoming );
+			$extra = is_array( $incoming ) ? $incoming : array();
+		}
+
+		// Configured UTM tags override anything passed in on the short URL.
+		foreach ( array( 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content' ) as $key ) {
+			$value = trim( (string) ( $code_settings[ $key ] ?? '' ) );
+			if ( '' !== $value ) {
+				$extra[ $key ] = $value;
+			}
+		}
+
+		if ( ! $extra ) {
+			return $destination;
+		}
+
+		$fragment = '';
+		$hash_pos = strpos( $destination, '#' );
+		if ( false !== $hash_pos ) {
+			$fragment    = substr( $destination, $hash_pos );
+			$destination = substr( $destination, 0, $hash_pos );
+		}
+
+		$query    = '';
+		$query_at = strpos( $destination, '?' );
+		if ( false !== $query_at ) {
+			$query       = substr( $destination, $query_at + 1 );
+			$destination = substr( $destination, 0, $query_at );
+		}
+
+		parse_str( $query, $existing );
+		$add = array_diff_key( $extra, is_array( $existing ) ? $existing : array() );
+
+		if ( $add ) {
+			$query .= ( '' !== $query ? '&' : '' ) . http_build_query( $add, '', '&', PHP_QUERY_RFC3986 );
+		}
+
+		return $destination . ( '' !== $query ? '?' . $query : '' ) . $fragment;
+	}
+
+	/**
 	 * Total scans recorded for a code.
 	 *
 	 * Only called for codes with a scan limit, so unlimited codes never pay
@@ -239,7 +301,7 @@ class Redirect_Handler {
 
 		return (int) $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = %d",
+				"SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = %d AND is_bot = 0",
 				$qr_code_id
 			)
 		);
@@ -358,7 +420,9 @@ class Redirect_Handler {
 		}
 
 		Scan_Logger::log( $scan_data );
-		Notification_Manager::maybe_schedule( (int) $code->id, $code_settings );
+		if ( empty( $scan_data['is_bot'] ) ) {
+			Notification_Manager::maybe_schedule( (int) $code->id, $code_settings );
+		}
 
 		exit;
 	}
@@ -423,6 +487,10 @@ class Redirect_Handler {
 			'ip_hash'    => hash( 'sha256', $remote_ip . $salt ),
 			'user_agent' => $user_agent,
 			'referrer'   => $referrer,
+			'is_bot'     => Bot_Detector::is_bot(
+				$user_agent,
+				isset( $_SERVER['REQUEST_METHOD'] ) ? (string) $_SERVER['REQUEST_METHOD'] : 'GET'
+			),
 		);
 	}
 }

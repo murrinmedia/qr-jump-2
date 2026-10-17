@@ -39,7 +39,7 @@ class Notification_Manager {
 			global $wpdb;
 			$total = (int) $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = %d",
+					"SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = %d AND is_bot = 0",
 					$qr_code_id
 				)
 			);
@@ -64,7 +64,10 @@ class Notification_Manager {
 			set_transient( $transient_key, 1, $rate_limit_minutes * MINUTE_IN_SECONDS );
 		}
 
-		wp_schedule_single_event( time(), 'qrjump_send_notification', array( $qr_code_id ) );
+		// The timestamp arg makes each event unique — WordPress silently drops a
+		// single event identical to one already queued in the last 10 minutes.
+		$now = time();
+		wp_schedule_single_event( $now, 'qrjump_send_notification', array( $qr_code_id, $now ) );
 	}
 
 	/**
@@ -74,8 +77,9 @@ class Notification_Manager {
 	 * Errors are swallowed — a failed email must never break plugin operation.
 	 *
 	 * @param int $qr_code_id
+	 * @param int $scanned_at Unix timestamp of the scan (0 = unknown, use now).
 	 */
-	public static function send( int $qr_code_id ): void {
+	public static function send( int $qr_code_id, int $scanned_at = 0 ): void {
 		global $wpdb;
 
 		$code = $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -108,14 +112,45 @@ class Notification_Manager {
 		/* translators: %s: QR code title */
 		$subject = sprintf( __( '[QR Jump] Scan detected: %s', 'qr-jump' ), $code->title ?: __( 'Untitled', 'qr-jump' ) );
 
+		$title      = $code->title ?: __( 'Untitled', 'qr-jump' );
 		$manage_url = admin_url( 'admin.php?page=qr-jump#/codes/' . $code->id . '/edit' );
-		$title_html = esc_html( $code->title ?: __( 'Untitled', 'qr-jump' ) );
+		$prefix     = trim( (string) Settings::get( 'redirect_prefix' ), '/' );
+		$short_url  = home_url( '/' . $prefix . '/' . $code->slug );
+		$scanned_at = $scanned_at > 0 ? $scanned_at : time();
+		$when       = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $scanned_at );
+
+		$counts = $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT COUNT(*) AS total, SUM(scan_type = 'unique') AS unique_scans
+				 FROM {$wpdb->prefix}qrjump_scans
+				 WHERE qr_code_id = %d AND is_bot = 0",
+				$qr_code_id
+			)
+		);
+
+		$is_vcard    = 'vcard' === ( $code_settings['destination_type'] ?? 'url' );
+		$destination = $is_vcard ? __( 'Contact card (vCard)', 'qr-jump' ) : (string) $code->destination_url;
+
+		$rows = array(
+			__( 'Scanned', 'qr-jump' )     => esc_html( $when ),
+			__( 'Short URL', 'qr-jump' )   => esc_html( $short_url ),
+			__( 'Destination', 'qr-jump' ) => esc_html( $destination ),
+			__( 'Total scans', 'qr-jump' ) => esc_html( number_format_i18n( (int) ( $counts->total ?? 0 ) ) ),
+			__( 'Unique scans', 'qr-jump' ) => esc_html( number_format_i18n( (int) ( $counts->unique_scans ?? 0 ) ) ),
+		);
+
+		$table = '';
+		foreach ( $rows as $label => $value ) {
+			$table .= '<tr><td style="padding:6px 12px 6px 0;color:#757575;white-space:nowrap;vertical-align:top;">'
+				. esc_html( $label ) . '</td><td style="padding:6px 0;word-break:break-all;">' . $value . '</td></tr>';
+		}
 
 		$message = '<!DOCTYPE html>'
 			. '<html><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;'
-			. 'color:#1e1e1e;font-size:14px;line-height:1.6;max-width:480px;margin:0 auto;padding:24px;">'
-			. '<p>Your QR code <strong>' . $title_html . '</strong> was just scanned.</p>'
-			. '<p><a href="' . esc_url( $manage_url ) . '" '
+			. 'color:#1e1e1e;font-size:14px;line-height:1.6;max-width:520px;margin:0 auto;padding:24px;">'
+			. '<p>Your QR code <strong>' . esc_html( $title ) . '</strong> was just scanned.</p>'
+			. '<table style="border-collapse:collapse;font-size:14px;">' . $table . '</table>'
+			. '<p style="margin-top:20px;"><a href="' . esc_url( $manage_url ) . '" '
 			. 'style="color:#2271b1;text-decoration:none;font-weight:500;">Manage this code</a></p>'
 			. '</body></html>';
 

@@ -67,7 +67,7 @@ class Report_Scheduler {
 		add_action( self::DAILY_HOOK,        array( $this, 'send_daily_report' ) );
 		add_action( self::WEEKLY_HOOK,       array( $this, 'send_weekly_report' ) );
 		add_action( self::MONTHLY_HOOK,      array( $this, 'send_monthly_report' ) );
-		add_action( 'qrjump_send_notification', array( 'QRJump\\Notification_Manager', 'send' ) );
+		add_action( 'qrjump_send_notification', array( 'QRJump\\Notification_Manager', 'send' ), 10, 2 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -147,7 +147,7 @@ class Report_Scheduler {
 					SUM(scan_type = 'unique') AS unique_scans,
 					SUM(scan_type = 'repeat') AS repeat_scans
 				 FROM {$scans_table}
-				 WHERE scanned_at BETWEEN %s AND %s",
+				 WHERE is_bot = 0 AND scanned_at BETWEEN %s AND %s",
 				$from_dt,
 				$to_dt
 			)
@@ -158,7 +158,7 @@ class Report_Scheduler {
 				"SELECT c.title, c.slug, COUNT(s.id) AS scan_count
 				 FROM {$scans_table} s
 				 JOIN {$codes_table} c ON c.id = s.qr_code_id
-				 WHERE s.scanned_at BETWEEN %s AND %s
+				 WHERE s.is_bot = 0 AND s.scanned_at BETWEEN %s AND %s
 				 GROUP BY s.qr_code_id
 				 ORDER BY scan_count DESC
 				 LIMIT 5",

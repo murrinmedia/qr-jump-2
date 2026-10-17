@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'QRJUMP_VERSION',         '1.0.34' );
-define( 'QRJUMP_DB_VERSION',      '1.0' );
+define( 'QRJUMP_DB_VERSION',      '1.1' );
 define( 'QRJUMP_PLUGIN_FILE',     __FILE__ );
 define( 'QRJUMP_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'QRJUMP_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );

@@ -57,6 +57,9 @@ export default function Dashboard() {
 				<StatCard label="Total Scans"  value={ data.total_scans }  />
 				<StatCard label="Unique Scans" value={ data.unique_scans } />
 				<StatCard label="Repeat Scans" value={ data.repeat_scans } />
+				{ data.bot_scans > 0 && (
+					<StatCard label="Bot hits (excluded)" value={ data.bot_scans } />
+				) }
 				<StatCard label="Total Codes"  value={ data.total_codes }  />
 				<StatCard label="Active Codes" value={ data.active_codes } />
 			</div>

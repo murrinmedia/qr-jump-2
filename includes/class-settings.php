@@ -31,6 +31,7 @@ class Settings {
 		'brand_fg_colour'           => '#000000',     // Default foreground colour for new QR codes
 		'brand_bg_colour'           => '#ffffff',     // Default background colour for new QR codes
 		'ip_header'                 => 'remote_addr', // 'remote_addr' | 'cloudflare' | 'forwarded' — where to read the visitor IP from
+		'retention_days'            => 0,             // Delete scans older than N days; 0 = keep forever
 		'delete_data_on_uninstall'  => 0,             // 1 = uninstall.php drops tables and options; 0 = keep everything
 	);
 

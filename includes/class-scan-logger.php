@@ -28,7 +28,8 @@ class Scan_Logger {
 	 *   qr_code_id: int,
 	 *   ip_hash: string,
 	 *   user_agent: string,
-	 *   referrer: string
+	 *   referrer: string,
+	 *   is_bot?: bool
 	 * } $data
 	 */
 	public static function log( array $data ): void {
@@ -46,7 +47,10 @@ class Scan_Logger {
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
 		$now        = current_time( 'mysql', true ); // UTC
 
-		$scan_type = self::determine_type( $scans_table, $qr_code_id, $ip_hash, $user_agent );
+		$is_bot    = ! empty( $data['is_bot'] ) ? 1 : 0;
+		$scan_type = $is_bot
+			? 'repeat' // Bot hits never count as unique; they're excluded from stats anyway.
+			: self::determine_type( $scans_table, $qr_code_id, $ip_hash, $user_agent );
 
 		$wpdb->insert(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$scans_table,
@@ -57,8 +61,9 @@ class Scan_Logger {
 				'user_agent' => $user_agent,
 				'referrer'   => $referrer,
 				'scan_type'  => $scan_type,
+				'is_bot'     => $is_bot,
 			),
-			array( '%d', '%s', '%s', '%s', '%s', '%s' )
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%d' )
 		);
 	}
 
@@ -96,6 +101,7 @@ class Scan_Logger {
 				 WHERE qr_code_id = %d
 				   AND ip_hash = %s
 				   AND user_agent = %s
+				   AND is_bot = 0
 				   AND scanned_at >= %s
 				 LIMIT 1",
 				$qr_code_id,

@@ -60,6 +60,7 @@ final class Plugin {
 
 		// Scheduled tasks and async notifications.
 		( new Report_Scheduler() )->register_hooks();
+		add_action( Data_Retention::HOOK, array( 'QRJump\\Data_Retention', 'run' ) );
 	}
 
 

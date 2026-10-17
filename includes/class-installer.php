@@ -28,6 +28,7 @@ class Installer {
 
 		// Schedule report cron jobs.
 		Report_Scheduler::schedule_all();
+		Data_Retention::schedule();
 
 		// Flush rewrite rules so /qr/<slug> is routable immediately.
 		flush_rewrite_rules();
@@ -44,6 +45,7 @@ class Installer {
 	 */
 	public static function deactivate(): void {
 		Report_Scheduler::unschedule_all();
+		Data_Retention::unschedule();
 		flush_rewrite_rules();
 	}
 
@@ -88,14 +90,52 @@ CREATE TABLE {$scans_table} (
   user_agent varchar(512) NOT NULL DEFAULT '',
   referrer varchar(2083) NOT NULL DEFAULT '',
   scan_type enum('unique','repeat') NOT NULL DEFAULT 'unique',
+  is_bot tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY  (id),
   KEY qr_code_id (qr_code_id),
+  KEY qr_code_bot (qr_code_id, is_bot),
   KEY scanned_at (scanned_at),
   KEY qr_scan_lookup (qr_code_id, ip_hash, scanned_at)
 ) {$charset_collate};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
+	}
+
+	/**
+	 * Data migrations keyed by the DB version that introduces them.
+	 *
+	 * Schema changes belong in create_tables() (dbDelta); put one-off data
+	 * fix-ups here and bump QRJUMP_DB_VERSION.
+	 *
+	 * @return array<string, callable>
+	 */
+	private static function migrations(): array {
+		return array(
+			'1.1' => array( self::class, 'migrate_1_1' ),
+		);
+	}
+
+	/**
+	 * 1.1 — scans.is_bot column added.
+	 *
+	 * Flags historical scans from known bots/link-preview fetchers, and
+	 * schedules the data-retention cron for sites that never re-activate.
+	 */
+	public static function migrate_1_1(): void {
+		global $wpdb;
+
+		$clauses = array( "user_agent = ''" );
+		$args    = array();
+		foreach ( Bot_Detector::patterns() as $pattern ) {
+			$clauses[] = 'user_agent LIKE %s';
+			$args[]    = '%' . $wpdb->esc_like( $pattern ) . '%';
+		}
+
+		$sql = "UPDATE {$wpdb->prefix}qrjump_scans SET is_bot = 1 WHERE " . implode( ' OR ', $clauses );
+		$wpdb->query( $wpdb->prepare( $sql, $args ) );  // phpcs:ignore WordPress.DB
+
+		Data_Retention::schedule();
 	}
 
 	/**
@@ -107,7 +147,14 @@ CREATE TABLE {$scans_table} (
 		$installed = get_option( 'qrjump_db_version', '0' );
 
 		if ( version_compare( $installed, QRJUMP_DB_VERSION, '<' ) ) {
+			// dbDelta adds any new columns/indexes, then each data migration
+			// newer than the installed version runs once, in order.
 			self::create_tables();
+			foreach ( self::migrations() as $version => $callback ) {
+				if ( version_compare( $installed, (string) $version, '<' ) ) {
+					call_user_func( $callback );
+				}
+			}
 			update_option( 'qrjump_db_version', QRJUMP_DB_VERSION, false );
 		}
 

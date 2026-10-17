@@ -48,6 +48,12 @@ const DEFAULTS = {
 		active_until:              '',
 		max_scans:                 0,
 		max_scans_message:         '',
+		pass_query_string:         false,
+		utm_source:                '',
+		utm_medium:                '',
+		utm_campaign:              '',
+		utm_term:                  '',
+		utm_content:               '',
 	},
 };
 
@@ -532,6 +538,35 @@ export default function QREdit() {
 							) }
 						</div>
 					</div>
+
+					{ form.settings.destination_type !== 'vcard' && (
+						<div className="qrjump-form-section">
+							<div className="qrjump-form-section__header">
+								<h2 className="qrjump-form-section__title">Query String &amp; UTM Tracking</h2>
+							</div>
+							<div className="qrjump-form-section__body">
+								<ToggleControl
+									label="Pass query string through to the destination"
+									help="Parameters added to the short URL (e.g. /qr/abc?ref=flyer) are appended to the destination. Parameters already in the destination URL are never overridden."
+									checked={ !! form.settings.pass_query_string }
+									onChange={ val => setSetting( 'pass_query_string', val ) }
+									__nextHasNoMarginBottom
+								/>
+								<p className="qrjump-help-text" style={ { marginTop: 16 } }>
+									Optional UTM tags added to every redirect. Leave blank to skip.
+								</p>
+								<div className="qrjump-form-row qrjump-form-row--cols-3">
+									<TextControl label="utm_source"   value={ form.settings.utm_source }   onChange={ val => setSetting( 'utm_source', val ) }   __nextHasNoMarginBottom />
+									<TextControl label="utm_medium"   value={ form.settings.utm_medium }   onChange={ val => setSetting( 'utm_medium', val ) }   __nextHasNoMarginBottom />
+									<TextControl label="utm_campaign" value={ form.settings.utm_campaign } onChange={ val => setSetting( 'utm_campaign', val ) } __nextHasNoMarginBottom />
+								</div>
+								<div className="qrjump-form-row qrjump-form-row--cols-3" style={ { marginTop: 14 } }>
+									<TextControl label="utm_term"    value={ form.settings.utm_term }    onChange={ val => setSetting( 'utm_term', val ) }    __nextHasNoMarginBottom />
+									<TextControl label="utm_content" value={ form.settings.utm_content } onChange={ val => setSetting( 'utm_content', val ) } __nextHasNoMarginBottom />
+								</div>
+							</div>
+						</div>
+					) }
 
 					<div className="qrjump-form-section">
 						<div className="qrjump-form-section__header">

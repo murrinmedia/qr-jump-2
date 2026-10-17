@@ -290,6 +290,36 @@ export default function Settings() {
 					</div>
 				</div>
 
+				{ /* ── Data retention ── */ }
+				<div className="qrjump-form-section">
+					<div className="qrjump-form-section__header">
+						<h2 className="qrjump-form-section__title">Data Retention</h2>
+					</div>
+					<div className="qrjump-form-section__body">
+						<p className="qrjump-help-text">
+							Automatically delete scan history older than this many days. Runs daily via WP-Cron.
+							Set to 0 to keep scans forever. Scan totals, unique counts and scan limits are based
+							on the scans still stored, so purging old scans lowers them too.
+						</p>
+						<div className="qrjump-form-row">
+							<TextControl
+								label="Keep scans for (days, 0 = forever)"
+								value={ String( settings.retention_days ) }
+								onChange={ val => setField( 'retention_days', Math.max( 0, parseInt( val ) || 0 ) ) }
+								type="number"
+								min={ 0 }
+								__nextHasNoMarginBottom
+							/>
+						</div>
+						{ Number( settings.retention_days ) > 0 && (
+							<Notice status="warning" isDismissible={ false }>
+								Scans older than { settings.retention_days } days will be permanently deleted
+								the next time the daily job runs after you save.
+							</Notice>
+						) }
+					</div>
+				</div>
+
 				{ /* ── Uninstall ── */ }
 				<div className="qrjump-form-section">
 					<div className="qrjump-form-section__header">

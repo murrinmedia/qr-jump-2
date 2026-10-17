@@ -407,7 +407,7 @@ class REST_Controller {
 					   SUM(CASE WHEN scanned_at >= DATE_FORMAT(NOW(), '%%Y-%%m-01') THEN 1 ELSE 0 END)  AS scans_month,
 					   SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)  AS scans_30d
 					 FROM {$scans_table}
-					 WHERE qr_code_id IN ({$placeholders})
+					 WHERE is_bot = 0 AND qr_code_id IN ({$placeholders})
 					 GROUP BY qr_code_id",
 					$ids
 				)
@@ -579,7 +579,7 @@ class REST_Controller {
 					SUM(CASE WHEN scanned_at >= DATE_FORMAT(NOW(), '%%Y-%%m-01') THEN 1 ELSE 0 END)  AS scans_month,
 					SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)  AS scans_30d
 				 FROM {$scans_table}
-				 WHERE qr_code_id = %d",
+				 WHERE is_bot = 0 AND qr_code_id = %d",
 				$id
 			)
 		);
@@ -944,7 +944,14 @@ class REST_Controller {
 					SUM(scan_type = 'repeat') AS repeat_scans,
 					MAX(scanned_at) AS last_scanned_at
 				 FROM {$scans_table}
-				 WHERE qr_code_id = %d",
+				 WHERE is_bot = 0 AND qr_code_id = %d",
+				$id
+			)
+		);
+
+		$bot_scans = (int) $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$scans_table} WHERE is_bot = 1 AND qr_code_id = %d",
 				$id
 			)
 		);
@@ -955,7 +962,7 @@ class REST_Controller {
 				"SELECT DATE(scanned_at) AS date, COUNT(*) AS scans,
 					SUM(scan_type = 'unique') AS unique_scans
 				 FROM {$scans_table}
-				 WHERE qr_code_id = %d AND scanned_at >= %s
+				 WHERE is_bot = 0 AND qr_code_id = %d AND scanned_at >= %s
 				 GROUP BY DATE(scanned_at)
 				 ORDER BY date ASC",
 				$id,
@@ -967,7 +974,7 @@ class REST_Controller {
 			$wpdb->prepare(
 				"SELECT HOUR(scanned_at) AS hour, COUNT(*) AS scans
 				 FROM {$scans_table}
-				 WHERE qr_code_id = %d AND scanned_at >= %s
+				 WHERE is_bot = 0 AND qr_code_id = %d AND scanned_at >= %s
 				 GROUP BY HOUR(scanned_at)
 				 ORDER BY hour ASC",
 				$id,
@@ -979,7 +986,7 @@ class REST_Controller {
 			$wpdb->prepare(
 				"SELECT referrer, COUNT(*) AS scans
 				 FROM {$scans_table}
-				 WHERE qr_code_id = %d AND referrer != ''
+				 WHERE is_bot = 0 AND qr_code_id = %d AND referrer != ''
 				 GROUP BY referrer
 				 ORDER BY scans DESC
 				 LIMIT 10",
@@ -993,6 +1000,7 @@ class REST_Controller {
 				'unique_scans'    => (int) ( $totals->unique_scans ?? 0 ),
 				'repeat_scans'    => (int) ( $totals->repeat_scans ?? 0 ),
 				'last_scanned_at' => $totals->last_scanned_at ?? null,
+				'bot_scans'       => $bot_scans,
 				'daily'           => $daily ?? array(),
 				'hourly'          => $hourly ?? array(),
 				'referrers'       => $referrers ?? array(),
@@ -1127,8 +1135,11 @@ class REST_Controller {
 			"SELECT COUNT(*) AS total,
 				SUM(scan_type = 'unique') AS unique_scans,
 				SUM(scan_type = 'repeat') AS repeat_scans
-			 FROM {$scans_table}"
+			 FROM {$scans_table}
+			 WHERE is_bot = 0"
 		);
+
+		$bot_scans = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$scans_table} WHERE is_bot = 1" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		$total_codes  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$codes_table}" );          // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$active_codes = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$codes_table} WHERE status = 1" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -1139,6 +1150,7 @@ class REST_Controller {
 			        SUM(s.scan_type = 'unique') AS unique_scans
 			 FROM {$scans_table} s
 			 JOIN {$codes_table} c ON c.id = s.qr_code_id
+			 WHERE s.is_bot = 0
 			 GROUP BY s.qr_code_id
 			 ORDER BY total_scans DESC
 			 LIMIT 5"
@@ -1149,6 +1161,7 @@ class REST_Controller {
 			        c.title AS code_title, c.slug
 			 FROM {$scans_table} s
 			 JOIN {$codes_table} c ON c.id = s.qr_code_id
+			 WHERE s.is_bot = 0
 			 ORDER BY s.scanned_at DESC
 			 LIMIT 10"
 		);
@@ -1158,7 +1171,7 @@ class REST_Controller {
 			$wpdb->prepare(
 				"SELECT DATE(scanned_at) AS date, COUNT(*) AS scans
 				 FROM {$scans_table}
-				 WHERE scanned_at >= %s
+				 WHERE is_bot = 0 AND scanned_at >= %s
 				 GROUP BY DATE(scanned_at)
 				 ORDER BY date ASC",
 				$since
@@ -1168,6 +1181,7 @@ class REST_Controller {
 		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			"SELECT HOUR(scanned_at) AS hour, COUNT(*) AS scans
 			 FROM {$scans_table}
+			 WHERE is_bot = 0
 			 GROUP BY HOUR(scanned_at)
 			 ORDER BY hour ASC"
 		);
@@ -1177,6 +1191,7 @@ class REST_Controller {
 				'total_scans'   => (int) ( $totals->total ?? 0 ),
 				'unique_scans'  => (int) ( $totals->unique_scans ?? 0 ),
 				'repeat_scans'  => (int) ( $totals->repeat_scans ?? 0 ),
+				'bot_scans'     => $bot_scans,
 				'total_codes'   => $total_codes,
 				'active_codes'  => $active_codes,
 				'top_codes'     => $top_codes ?? array(),
@@ -1257,6 +1272,7 @@ class REST_Controller {
 			'ip_header'                 => static function ( $v ) {
 				return in_array( $v, array( 'remote_addr', 'cloudflare', 'forwarded' ), true ) ? $v : 'remote_addr';
 			},
+			'retention_days'            => 'absint',
 			'delete_data_on_uninstall'  => static function ( $v ) {
 				return rest_sanitize_boolean( $v ) ? 1 : 0;
 			},
@@ -1352,6 +1368,12 @@ class REST_Controller {
 			'active_until'              => '',
 			'max_scans'                 => 0,
 			'max_scans_message'         => '',
+			'pass_query_string'         => false,
+			'utm_source'                => '',
+			'utm_medium'                => '',
+			'utm_campaign'              => '',
+			'utm_term'                  => '',
+			'utm_content'               => '',
 		);
 	}
 
@@ -1378,7 +1400,23 @@ class REST_Controller {
 			'active_until'              => $this->clean_datetime( (string) ( $raw['active_until'] ?? '' ) ),
 			'max_scans'                 => absint( $raw['max_scans'] ?? 0 ),
 			'max_scans_message'         => sanitize_textarea_field( (string) ( $raw['max_scans_message'] ?? '' ) ),
+			'pass_query_string'         => ! empty( $raw['pass_query_string'] ),
+			'utm_source'                => $this->clean_utm( $raw['utm_source']   ?? '' ),
+			'utm_medium'                => $this->clean_utm( $raw['utm_medium']   ?? '' ),
+			'utm_campaign'              => $this->clean_utm( $raw['utm_campaign'] ?? '' ),
+			'utm_term'                  => $this->clean_utm( $raw['utm_term']     ?? '' ),
+			'utm_content'               => $this->clean_utm( $raw['utm_content']  ?? '' ),
 		);
+	}
+
+	/**
+	 * Sanitise a UTM parameter value (plain text, no whitespace padding).
+	 *
+	 * @param mixed $value
+	 * @return string
+	 */
+	private function clean_utm( $value ): string {
+		return substr( trim( sanitize_text_field( (string) $value ) ), 0, 100 );
 	}
 
 	/**
@@ -1633,7 +1671,7 @@ class REST_Controller {
 			if ( $include_scans ) {
 				$code['scans'] = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 					$wpdb->prepare(
-						"SELECT scanned_at, ip_hash, user_agent, referrer, scan_type
+						"SELECT scanned_at, ip_hash, user_agent, referrer, scan_type, is_bot
 						 FROM {$scans_table}
 						 WHERE qr_code_id = %d
 						 ORDER BY scanned_at ASC",
@@ -1717,7 +1755,7 @@ class REST_Controller {
 			// Plugin settings travel with a full overwrite (never with an append).
 			// Environment-specific settings are never carried across sites.
 			if ( ! empty( $body['settings'] ) && is_array( $body['settings'] ) ) {
-				unset( $body['settings']['ip_header'], $body['settings']['delete_data_on_uninstall'] );
+				unset( $body['settings']['ip_header'], $body['settings']['delete_data_on_uninstall'], $body['settings']['retention_days'] );
 				$this->save_settings( $body['settings'] );
 				$settings_imported = true;
 			}
@@ -1783,8 +1821,9 @@ class REST_Controller {
 						'scan_type'  => in_array( $scan['scan_type'] ?? 'unique', array( 'unique', 'repeat' ), true )
 							? $scan['scan_type']
 							: 'unique',
+						'is_bot'     => empty( $scan['is_bot'] ) ? 0 : 1,
 					),
-					array( '%d', '%s', '%s', '%s', '%s', '%s' )
+					array( '%d', '%s', '%s', '%s', '%s', '%s', '%d' )
 				);
 				++$scans_imported;
 			}
