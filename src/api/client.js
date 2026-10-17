@@ -105,7 +105,8 @@ export const api = {
 		delete: ( id ) => del( `/codes/${ id }` ),
 
 		/** @param {number} id */
-		stats: ( id ) => get( `/codes/${ id }/stats` ).then( r => r.data ),
+		/** @param {number} id @param {number} [days=30]  7, 30, 90 or 0 (all time) */
+		stats: ( id, days = 30 ) => get( `/codes/${ id }/stats`, { days } ).then( r => r.data ),
 
 		/** @param {number} id */
 		resetScans: ( id ) => del( `/codes/${ id }/scans` ),
@@ -137,7 +138,8 @@ export const api = {
 	 */
 	qrPreviewUrl: ( url, params = {} ) => signedUrl( '/qr-preview', { url, ...params } ),
 
-	dashboard: () => get( '/dashboard' ).then( r => r.data ),
+	/** @param {number} [days=30]  7, 30, 90 or 0 (all time) */
+	dashboard: ( days = 30 ) => get( '/dashboard', { days } ).then( r => r.data ),
 
 	settings: {
 		get:    ()       => get( '/settings' ).then( r => r.data ),

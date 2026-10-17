@@ -10,25 +10,32 @@ import { Button, Spinner } from '@wordpress/components';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import ScanChart from '../components/ScanChart';
+import StatCard from '../components/StatCard';
+import RangeSelect, { useRangeDays, rangeLabel } from '../components/RangeSelect';
 
 export default function QRStats() {
 	const { id }   = useParams();
 	const navigate = useNavigate();
 
+	const [ days,    setDays    ] = useRangeDays();
 	const [ code,    setCode    ] = useState( null );
 	const [ stats,   setStats   ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ error,   setError   ] = useState( null );
 
 	useEffect( () => {
-		Promise.all( [ api.codes.get( id ), api.codes.stats( id ) ] )
+		let cancelled = false;
+		Promise.all( [ api.codes.get( id ), api.codes.stats( id, days ) ] )
 			.then( ( [ codeData, statsData ] ) => {
+				if ( cancelled ) return;
 				setCode( codeData );
 				setStats( statsData );
+				setError( null );
 			} )
-			.catch( err => setError( err.message ) )
-			.finally( () => setLoading( false ) );
-	}, [ id ] );
+			.catch( err => { if ( ! cancelled ) setError( err.message ); } )
+			.finally( () => { if ( ! cancelled ) setLoading( false ); } );
+		return () => { cancelled = true; };
+	}, [ id, days ] );
 
 	if ( loading ) return <div className="qrjump-spinner-wrap"><Spinner /></div>;
 
@@ -51,7 +58,8 @@ export default function QRStats() {
 						<a href={ shortUrl } target="_blank" rel="noreferrer">{ shortUrl }</a>
 					</p>
 				</div>
-				<div style={ { display: 'flex', gap: 8 } }>
+				<div style={ { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }>
+					<RangeSelect value={ days } onChange={ setDays } />
 					<Button variant="secondary" onClick={ () => navigate( `/codes/${ id }/edit` ) }>
 						Edit code
 					</Button>
@@ -63,9 +71,9 @@ export default function QRStats() {
 
 			{ /* ── Totals ── */ }
 			<div className="qrjump-stats-grid" style={ { marginBottom: 24 } }>
-				<StatCard label="Total scans"  value={ stats.total        } />
-				<StatCard label="Unique"        value={ stats.unique_scans } />
-				<StatCard label="Repeat"        value={ stats.repeat_scans } />
+				<StatCard label="Total scans" value={ stats.total }        previous={ stats.previous ? stats.previous.total : null }        previousLabel={ days > 0 ? `previous ${ days } days` : '' } />
+				<StatCard label="Unique"      value={ stats.unique_scans } previous={ stats.previous ? stats.previous.unique_scans : null } previousLabel={ days > 0 ? `previous ${ days } days` : '' } />
+				<StatCard label="Repeat"      value={ stats.repeat_scans } previous={ stats.previous ? stats.previous.repeat_scans : null } previousLabel={ days > 0 ? `previous ${ days } days` : '' } />
 				{ stats.bot_scans > 0 && (
 					<StatCard label="Bot hits (excluded)" value={ stats.bot_scans } />
 				) }
@@ -82,7 +90,9 @@ export default function QRStats() {
 			{ /* ── 30-day chart ── */ }
 			<div className="qrjump-card" style={ { marginBottom: 20 } }>
 				<div className="qrjump-card__header">
-					<h2 className="qrjump-card__title">Daily scans — last 30 days</h2>
+					<h2 className="qrjump-card__title">
+						Daily scans <span className="qrjump-card__subtitle">{ days > 0 ? rangeLabel( days ) : 'last 12 months' }</span>
+					</h2>
 				</div>
 				<div className="qrjump-card__content">
 					{ stats.daily && stats.daily.length > 0
@@ -97,7 +107,9 @@ export default function QRStats() {
 				{ /* ── Hour of day ── */ }
 				<div className="qrjump-card">
 					<div className="qrjump-card__header">
-						<h2 className="qrjump-card__title">Scans by hour of day</h2>
+						<h2 className="qrjump-card__title">
+							Scans by hour of day <span className="qrjump-card__subtitle">{ rangeLabel( days ) }</span>
+						</h2>
 					</div>
 					<div className="qrjump-card__content">
 						{ stats.hourly && stats.hourly.length > 0 ? (
@@ -111,7 +123,9 @@ export default function QRStats() {
 				{ /* ── Top referrers ── */ }
 				<div className="qrjump-card">
 					<div className="qrjump-card__header">
-						<h2 className="qrjump-card__title">Top referrers</h2>
+						<h2 className="qrjump-card__title">
+							Top referrers <span className="qrjump-card__subtitle">{ rangeLabel( days ) }</span>
+						</h2>
 					</div>
 					{ stats.referrers && stats.referrers.length > 0 ? (
 						<table className="qrjump-table">
@@ -143,17 +157,6 @@ export default function QRStats() {
 
 			</div>
 		</>
-	);
-}
-
-function StatCard( { label, value, small = false } ) {
-	return (
-		<div className="qrjump-stat-card">
-			<div className="qrjump-stat-card__label">{ label }</div>
-			<div className="qrjump-stat-card__value" style={ small ? { fontSize: 16 } : {} }>
-				{ typeof value === 'number' ? Number( value ).toLocaleString() : value }
-			</div>
-		</div>
 	);
 }
 

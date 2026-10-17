@@ -11,20 +11,25 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import ScanChart from '../components/ScanChart';
 import HourChart from '../components/HourChart';
+import StatCard from '../components/StatCard';
+import RangeSelect, { useRangeDays, rangeLabel } from '../components/RangeSelect';
 
 export default function Dashboard() {
 	const navigate = useNavigate();
 
+	const [ days,    setDays    ] = useRangeDays();
 	const [ data,    setData    ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ error,   setError   ] = useState( null );
 
 	useEffect( () => {
-		api.dashboard()
-			.then( setData )
-			.catch( err => setError( err.message ) )
-			.finally( () => setLoading( false ) );
-	}, [] );
+		let cancelled = false;
+		api.dashboard( days )
+			.then( d => { if ( ! cancelled ) { setData( d ); setError( null ); } } )
+			.catch( err => { if ( ! cancelled ) setError( err.message ); } )
+			.finally( () => { if ( ! cancelled ) setLoading( false ); } );
+		return () => { cancelled = true; };
+	}, [ days ] );
 
 	if ( loading ) {
 		return (
@@ -46,17 +51,21 @@ export default function Dashboard() {
 	const prefix = window.qrJumpData?.redirectPrefix || 'go';
 	const homeUrl = window.qrJumpData?.homeUrl || '';
 
+	const prevLabel = days > 0 ? `previous ${ days } days` : '';
+	const prev      = data.previous || null;
+
 	return (
 		<>
 			<div className="qrjump-page-header">
 				<h1 className="qrjump-page-header__title">Dashboard</h1>
+				<RangeSelect value={ days } onChange={ setDays } />
 			</div>
 
 			{ /* ── Stat cards ── */ }
 			<div className="qrjump-stats-grid">
-				<StatCard label="Total Scans"  value={ data.total_scans }  />
-				<StatCard label="Unique Scans" value={ data.unique_scans } />
-				<StatCard label="Repeat Scans" value={ data.repeat_scans } />
+				<StatCard label="Total Scans"  value={ data.total_scans }  previous={ prev ? prev.total : null }        previousLabel={ prevLabel } />
+				<StatCard label="Unique Scans" value={ data.unique_scans } previous={ prev ? prev.unique_scans : null } previousLabel={ prevLabel } />
+				<StatCard label="Repeat Scans" value={ data.repeat_scans } previous={ prev ? prev.repeat_scans : null } previousLabel={ prevLabel } />
 				{ data.bot_scans > 0 && (
 					<StatCard label="Bot hits (excluded)" value={ data.bot_scans } />
 				) }
@@ -70,7 +79,7 @@ export default function Dashboard() {
 				{ /* Top codes */ }
 				<div className="qrjump-card">
 					<div className="qrjump-card__header">
-						<h2 className="qrjump-card__title">Top QR Codes</h2>
+						<h2 className="qrjump-card__title">Top QR Codes <span className="qrjump-card__subtitle">{ rangeLabel( days ) }</span></h2>
 					</div>
 					{ data.top_codes && data.top_codes.length > 0 ? (
 						<table className="qrjump-table">
@@ -167,7 +176,9 @@ export default function Dashboard() {
 			<div className="qrjump-dashboard-grid" style={ { marginTop: 24 } }>
 				<div className="qrjump-card">
 					<div className="qrjump-card__header">
-						<h2 className="qrjump-card__title">Daily scans — last 30 days</h2>
+						<h2 className="qrjump-card__title">
+							Daily scans <span className="qrjump-card__subtitle">{ days > 0 ? rangeLabel( days ) : 'last 12 months' }</span>
+						</h2>
 					</div>
 					<div className="qrjump-card__content">
 						{ data.daily && data.daily.length > 0 ? (
@@ -179,7 +190,9 @@ export default function Dashboard() {
 				</div>
 				<div className="qrjump-card">
 					<div className="qrjump-card__header">
-						<h2 className="qrjump-card__title">Scans by hour of day</h2>
+						<h2 className="qrjump-card__title">
+							Scans by hour of day <span className="qrjump-card__subtitle">{ rangeLabel( days ) }</span>
+						</h2>
 					</div>
 					<div className="qrjump-card__content">
 						{ data.hourly && data.hourly.length > 0 ? (
@@ -191,17 +204,6 @@ export default function Dashboard() {
 				</div>
 			</div>
 		</>
-	);
-}
-
-function StatCard( { label, value } ) {
-	return (
-		<div className="qrjump-stat-card">
-			<div className="qrjump-stat-card__label">{ label }</div>
-			<div className="qrjump-stat-card__value">
-				{ Number( value ).toLocaleString() }
-			</div>
-		</div>
 	);
 }
 

@@ -332,7 +332,9 @@ export default function QRList() {
 											</span>
 										</td>
 										<td style={ { whiteSpace: 'nowrap', color: 'var(--qrjump-text-muted)', fontSize: 12 } }>
-											{ code.created_at ? code.created_at.slice( 0, 10 ) : '—' }
+											{ code.created_at
+												? new Date( code.created_at.replace( ' ', 'T' ) + 'Z' ).toLocaleDateString( undefined, { dateStyle: 'medium' } )
+												: '—' }
 										</td>
 										<td style={ { whiteSpace: 'nowrap' } } onClick={ e => e.stopPropagation() }>
 											<Button

@@ -936,30 +936,17 @@ class REST_Controller {
 			return new \WP_Error( 'qrjump_not_found', __( 'QR code not found.', 'qr-jump' ), array( 'status' => 404 ) );
 		}
 
-		$totals = $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->prepare(
-				"SELECT
-					COUNT(*) AS total,
-					SUM(scan_type = 'unique') AS unique_scans,
-					SUM(scan_type = 'repeat') AS repeat_scans,
-					MAX(scanned_at) AS last_scanned_at
-				 FROM {$scans_table}
-				 WHERE is_bot = 0 AND qr_code_id = %d",
-				$id
-			)
-		);
-
-		$bot_scans = (int) $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$scans_table} WHERE is_bot = 1 AND qr_code_id = %d",
-				$id
-			)
-		);
-
-		// Scans are stored in UTC; group by the site's local day / hour.
+		$days   = $this->clean_range_days( $request->get_param( 'days' ) );
+		$from   = $days > 0 ? $this->days_since( $days ) : null;
+		$prev   = $days > 0 ? $this->days_since( $days * 2 ) : null;
 		$offset = $this->tz_offset();
-		$since  = $this->days_since( 30 );
-		$daily  = $this->fill_days(
+
+		$totals   = $this->scan_totals( $id, $from );
+		$previous = null !== $prev ? $this->scan_totals( $id, $prev, $from ) : null;
+
+		// Charts: a period of N days plots N local days; "all time" plots the last year.
+		$chart_days = $days > 0 ? $days : 365;
+		$daily      = $this->fill_days(
 			$wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->prepare(
 					"SELECT DATE(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS date, COUNT(*) AS scans,
@@ -970,22 +957,23 @@ class REST_Controller {
 					 ORDER BY date ASC",
 					$offset,
 					$id,
-					$since
+					$this->days_since( $chart_days )
 				)
 			),
-			30
+			$chart_days
 		);
+
+		$range_sql  = null !== $from ? ' AND scanned_at >= %s' : '';
+		$range_args = null !== $from ? array( $from ) : array();
 
 		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
 				"SELECT HOUR(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS hour, COUNT(*) AS scans
 				 FROM {$scans_table}
-				 WHERE is_bot = 0 AND qr_code_id = %d AND scanned_at >= %s
+				 WHERE is_bot = 0 AND qr_code_id = %d{$range_sql}
 				 GROUP BY hour
 				 ORDER BY hour ASC",
-				$offset,
-				$id,
-				$since
+				...array_merge( array( $offset, $id ), $range_args )
 			)
 		);
 
@@ -993,22 +981,25 @@ class REST_Controller {
 			$wpdb->prepare(
 				"SELECT referrer, COUNT(*) AS scans
 				 FROM {$scans_table}
-				 WHERE is_bot = 0 AND qr_code_id = %d AND referrer != ''
+				 WHERE is_bot = 0 AND qr_code_id = %d AND referrer != ''{$range_sql}
 				 GROUP BY referrer
 				 ORDER BY scans DESC
 				 LIMIT 10",
-				$id
+				...array_merge( array( $id ), $range_args )
 			)
 		);
 
 		return rest_ensure_response(
 			array(
-				'total'           => (int) ( $totals->total ?? 0 ),
-				'unique_scans'    => (int) ( $totals->unique_scans ?? 0 ),
-				'repeat_scans'    => (int) ( $totals->repeat_scans ?? 0 ),
-				'last_scanned_at' => $totals->last_scanned_at ?? null,
-				'bot_scans'       => $bot_scans,
-				'daily'           => $daily ?? array(),
+				'range_days'      => $days,
+				'chart_days'      => $chart_days,
+				'total'           => $totals['total'],
+				'unique_scans'    => $totals['unique_scans'],
+				'repeat_scans'    => $totals['repeat_scans'],
+				'previous'        => $previous,
+				'last_scanned_at' => $this->last_scan( $id ),
+				'bot_scans'       => $this->bot_scans( $id, $from ),
+				'daily'           => $daily,
 				'hourly'          => $hourly ?? array(),
 				'referrers'       => $referrers ?? array(),
 			)
@@ -1148,30 +1139,30 @@ class REST_Controller {
 		$codes_table = $wpdb->prefix . 'qrjump_codes';
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
 
-		$totals = $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT COUNT(*) AS total,
-				SUM(scan_type = 'unique') AS unique_scans,
-				SUM(scan_type = 'repeat') AS repeat_scans
-			 FROM {$scans_table}
-			 WHERE is_bot = 0"
-		);
+		$days   = $this->clean_range_days( $request->get_param( 'days' ) );
+		$from   = $days > 0 ? $this->days_since( $days ) : null;
+		$prev   = $days > 0 ? $this->days_since( $days * 2 ) : null;
+		$offset = $this->tz_offset();
 
-		$bot_scans = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$scans_table} WHERE is_bot = 1" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$totals   = $this->scan_totals( null, $from );
+		$previous = null !== $prev ? $this->scan_totals( null, $prev, $from ) : null;
 
 		$total_codes  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$codes_table}" );          // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$active_codes = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$codes_table} WHERE status = 1" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
-		$top_codes = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT c.id, c.title, c.slug,
+		$range_sql  = null !== $from ? ' AND s.scanned_at >= %s' : '';
+		$range_args = null !== $from ? array( $from ) : array();
+
+		$top_sql = "SELECT c.id, c.title, c.slug,
 			        COUNT(s.id) AS total_scans,
 			        SUM(s.scan_type = 'unique') AS unique_scans
 			 FROM {$scans_table} s
 			 JOIN {$codes_table} c ON c.id = s.qr_code_id
-			 WHERE s.is_bot = 0
+			 WHERE s.is_bot = 0{$range_sql}
 			 GROUP BY s.qr_code_id
 			 ORDER BY total_scans DESC
-			 LIMIT 5"
-		);
+			 LIMIT 5";
+		$top_codes = $wpdb->get_results( $range_args ? $wpdb->prepare( $top_sql, ...$range_args ) : $top_sql );  // phpcs:ignore WordPress.DB
 
 		$recent_scans = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			"SELECT s.qr_code_id, s.scanned_at, s.scan_type,
@@ -1183,10 +1174,9 @@ class REST_Controller {
 			 LIMIT 10"
 		);
 
-		// Scans are stored in UTC; group by the site's local day / hour.
-		$offset = $this->tz_offset();
-		$since  = $this->days_since( 30 );
-		$daily  = $this->fill_days(
+		// Charts: a period of N days plots N local days; "all time" plots the last year.
+		$chart_days = $days > 0 ? $days : 365;
+		$daily      = $this->fill_days(
 			$wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->prepare(
 					"SELECT DATE(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS date, COUNT(*) AS scans,
@@ -1196,35 +1186,39 @@ class REST_Controller {
 					 GROUP BY date
 					 ORDER BY date ASC",
 					$offset,
-					$since
+					$this->days_since( $chart_days )
 				)
 			),
-			30
+			$chart_days
 		);
 
-		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$hourly_range = null !== $from ? ' AND scanned_at >= %s' : '';
+		$hourly       = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
 				"SELECT HOUR(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS hour, COUNT(*) AS scans
 				 FROM {$scans_table}
-				 WHERE is_bot = 0
+				 WHERE is_bot = 0{$hourly_range}
 				 GROUP BY hour
 				 ORDER BY hour ASC",
-				$offset
+				...array_merge( array( $offset ), $range_args )
 			)
 		);
 
 		return rest_ensure_response(
 			array(
-				'total_scans'   => (int) ( $totals->total ?? 0 ),
-				'unique_scans'  => (int) ( $totals->unique_scans ?? 0 ),
-				'repeat_scans'  => (int) ( $totals->repeat_scans ?? 0 ),
-				'bot_scans'     => $bot_scans,
-				'total_codes'   => $total_codes,
-				'active_codes'  => $active_codes,
-				'top_codes'     => $top_codes ?? array(),
-				'recent_scans'  => $recent_scans ?? array(),
-				'daily'         => $daily ?? array(),
-				'hourly'        => $hourly ?? array(),
+				'range_days'   => $days,
+				'chart_days'   => $chart_days,
+				'total_scans'  => $totals['total'],
+				'unique_scans' => $totals['unique_scans'],
+				'repeat_scans' => $totals['repeat_scans'],
+				'previous'     => $previous,
+				'bot_scans'    => $this->bot_scans( null, $from ),
+				'total_codes'  => $total_codes,
+				'active_codes' => $active_codes,
+				'top_codes'    => $top_codes ?? array(),
+				'recent_scans' => $recent_scans ?? array(),
+				'daily'        => $daily,
+				'hourly'       => $hourly ?? array(),
 			)
 		);
 	}
@@ -1350,6 +1344,99 @@ class REST_Controller {
 	// =========================================================================
 	// Private helpers
 	// =========================================================================
+
+	/**
+	 * Validate the ?days= reporting period. Allowed: 7, 30, 90, or 0 (all time).
+	 * Anything else, or no value, falls back to 30.
+	 *
+	 * @param mixed $value
+	 */
+	private function clean_range_days( $value ): int {
+		if ( null === $value || '' === $value ) {
+			return 30;
+		}
+		$days = absint( $value );
+		return in_array( $days, array( 7, 30, 90, 0 ), true ) ? $days : 30;
+	}
+
+	/**
+	 * Non-bot scan totals, optionally for one code and a UTC time window.
+	 *
+	 * @param int|null    $code_id Restrict to one code, or null for all.
+	 * @param string|null $from    Inclusive UTC lower bound.
+	 * @param string|null $to      Exclusive UTC upper bound.
+	 * @return array{total: int, unique_scans: int, repeat_scans: int}
+	 */
+	private function scan_totals( ?int $code_id, ?string $from, ?string $to = null ): array {
+		global $wpdb;
+
+		$where = array( 'is_bot = 0' );
+		$args  = array();
+		if ( null !== $code_id ) {
+			$where[] = 'qr_code_id = %d';
+			$args[]  = $code_id;
+		}
+		if ( null !== $from ) {
+			$where[] = 'scanned_at >= %s';
+			$args[]  = $from;
+		}
+		if ( null !== $to ) {
+			$where[] = 'scanned_at < %s';
+			$args[]  = $to;
+		}
+
+		$sql = "SELECT COUNT(*) AS total,
+				SUM(scan_type = 'unique') AS unique_scans,
+				SUM(scan_type = 'repeat') AS repeat_scans
+			 FROM {$wpdb->prefix}qrjump_scans
+			 WHERE " . implode( ' AND ', $where );
+
+		$row = $wpdb->get_row( $args ? $wpdb->prepare( $sql, ...$args ) : $sql );  // phpcs:ignore WordPress.DB
+
+		return array(
+			'total'        => (int) ( $row->total ?? 0 ),
+			'unique_scans' => (int) ( $row->unique_scans ?? 0 ),
+			'repeat_scans' => (int) ( $row->repeat_scans ?? 0 ),
+		);
+	}
+
+	/**
+	 * Number of bot hits, optionally for one code and since a UTC time.
+	 */
+	private function bot_scans( ?int $code_id, ?string $from ): int {
+		global $wpdb;
+
+		$where = array( 'is_bot = 1' );
+		$args  = array();
+		if ( null !== $code_id ) {
+			$where[] = 'qr_code_id = %d';
+			$args[]  = $code_id;
+		}
+		if ( null !== $from ) {
+			$where[] = 'scanned_at >= %s';
+			$args[]  = $from;
+		}
+
+		$sql = "SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE " . implode( ' AND ', $where );
+
+		return (int) $wpdb->get_var( $args ? $wpdb->prepare( $sql, ...$args ) : $sql );  // phpcs:ignore WordPress.DB
+	}
+
+	/**
+	 * UTC time of a code's most recent non-bot scan (all time), or null.
+	 */
+	private function last_scan( int $code_id ): ?string {
+		global $wpdb;
+
+		$value = $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT MAX(scanned_at) FROM {$wpdb->prefix}qrjump_scans WHERE is_bot = 0 AND qr_code_id = %d",
+				$code_id
+			)
+		);
+
+		return $value ?: null;
+	}
 
 	/**
 	 * Period start times for the Today / Week / Month / 30-day counters, as UTC

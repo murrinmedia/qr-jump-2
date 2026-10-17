@@ -26,6 +26,7 @@ import HourChart from '../components/HourChart';
 import CopyButton from '../components/CopyButton';
 import VCardBuilder, { EMPTY_VCARD_DATA } from '../components/VCardBuilder';
 import Toast from '../components/Toast';
+import RangeSelect, { useRangeDays, rangeLabel } from '../components/RangeSelect';
 
 const DEFAULTS = {
 	title:           '',
@@ -79,6 +80,7 @@ export default function QREdit() {
 	const [ notesOpen,   setNotesOpen   ] = useState( false );
 	const [ notifOpen,   setNotifOpen   ] = useState( false );
 	const [ utmOpen,     setUtmOpen     ] = useState( false );
+	const [ statsDays,   setStatsDays   ] = useRangeDays();
 	const [ vcardPreviewOpen, setVcardPreviewOpen ] = useState( false );
 	const [ savedForm,   setSavedForm   ] = useState( null );
 	const [ toast,       setToast       ] = useState( null );
@@ -147,12 +149,20 @@ export default function QREdit() {
 			.catch( () => setNotice( { type: 'error', message: 'Failed to load QR code.' } ) )
 			.finally( () => setLoading( false ) );
 
-		// Load detailed stats separately so they don't block the form.
-		setStatsLoading( true );
-		api.codes.stats( id )
-			.then( setFullStats )
-			.finally( () => setStatsLoading( false ) );
 	}, [ id, isNew ] );
+
+	// Detailed stats load separately (and reload when the period changes) so
+	// they never block the form.
+	useEffect( () => {
+		if ( isNew ) return;
+		let cancelled = false;
+		setStatsLoading( true );
+		api.codes.stats( id, statsDays )
+			.then( s => { if ( ! cancelled ) setFullStats( s ); } )
+			.catch( () => {} )
+			.finally( () => { if ( ! cancelled ) setStatsLoading( false ); } );
+		return () => { cancelled = true; };
+	}, [ id, isNew, statsDays ] );
 
 	// ── Field helpers ─────────────────────────────────────────────────────────
 
@@ -723,12 +733,20 @@ export default function QREdit() {
 
 				{ /* ── Full stats (below form, saved codes only) ── */ }
 				{ ! isNew && (
-					<div className="qrjump-dashboard-grid" style={ { marginTop: 24 } }>
+					<div className="qrjump-range-row">
+						<h2 className="qrjump-range-row__title">Activity</h2>
+						<RangeSelect value={ statsDays } onChange={ setStatsDays } />
+					</div>
+				) }
+				{ ! isNew && (
+					<div className="qrjump-dashboard-grid" style={ { marginTop: 12 } }>
 
 						{ /* 30-day line chart */ }
 						<div className="qrjump-card">
 							<div className="qrjump-card__header">
-								<h2 className="qrjump-card__title">Daily scans — last 30 days</h2>
+								<h2 className="qrjump-card__title">
+									Daily scans <span className="qrjump-card__subtitle">{ statsDays > 0 ? rangeLabel( statsDays ) : 'last 12 months' }</span>
+								</h2>
 							</div>
 							<div className="qrjump-card__content">
 								{ statsLoading ? (
@@ -748,7 +766,9 @@ export default function QREdit() {
 						{ /* Hour of day */ }
 						<div className="qrjump-card">
 							<div className="qrjump-card__header">
-								<h2 className="qrjump-card__title">Scans by hour of day</h2>
+								<h2 className="qrjump-card__title">
+									Scans by hour of day <span className="qrjump-card__subtitle">{ rangeLabel( statsDays ) }</span>
+								</h2>
 							</div>
 							<div className="qrjump-card__content">
 								{ statsLoading ? (
@@ -816,32 +836,6 @@ export default function QREdit() {
 								/>
 							</div>
 						</div>
-
-						{ /* Quick Stats */ }
-						{ stats && (
-							<div className="qrjump-sidebar-panel">
-								<h3 className="qrjump-sidebar-panel__title">Quick Stats</h3>
-								<div className="qrjump-sidebar-stats">
-									<div className="qrjump-sidebar-stat">
-										<span className="qrjump-sidebar-stat__label">Total scans</span>
-										<span className="qrjump-sidebar-stat__value">{ Number( stats.total ).toLocaleString() }</span>
-									</div>
-									<div className="qrjump-sidebar-stat">
-										<span className="qrjump-sidebar-stat__label">Unique</span>
-										<span className="qrjump-sidebar-stat__value">{ Number( stats.unique ).toLocaleString() }</span>
-									</div>
-									<div className="qrjump-sidebar-stat">
-										<span className="qrjump-sidebar-stat__label">Last scan</span>
-										<span className="qrjump-sidebar-stat__value qrjump-sidebar-stat__value--small">
-											{ stats.last_scanned
-												? new Date( stats.last_scanned + 'Z' ).toLocaleString( [], { dateStyle: 'medium', timeStyle: 'short' } )
-												: '—'
-											}
-										</span>
-									</div>
-								</div>
-							</div>
-						) }
 
 						{ /* Actions */ }
 						<div className="qrjump-sidebar-panel">

@@ -284,6 +284,9 @@ export default function Settings() {
 								}
 								type="number"
 								min={ 1 }
+								autoComplete="off"
+								data-lpignore="true"
+								data-1p-ignore="true"
 								__nextHasNoMarginBottom
 							/>
 						</div>
@@ -308,6 +311,9 @@ export default function Settings() {
 								onChange={ val => setField( 'retention_days', Math.max( 0, parseInt( val ) || 0 ) ) }
 								type="number"
 								min={ 0 }
+								autoComplete="off"
+								data-lpignore="true"
+								data-1p-ignore="true"
 								__nextHasNoMarginBottom
 							/>
 						</div>
@@ -317,24 +323,6 @@ export default function Settings() {
 								the next time the daily job runs after you save.
 							</Notice>
 						) }
-					</div>
-				</div>
-
-				{ /* ── Uninstall ── */ }
-				<div className="qrjump-form-section">
-					<div className="qrjump-form-section__header">
-						<h2 className="qrjump-form-section__title">Uninstall</h2>
-					</div>
-					<div className="qrjump-form-section__body">
-						<ToggleControl
-							label="Delete all data when plugin is uninstalled"
-							help={ String( settings.delete_data_on_uninstall ) === '1'
-								? 'Deleting the plugin from the Plugins screen will permanently remove all QR codes, scan history and settings.'
-								: 'Deleting the plugin from the Plugins screen will keep all QR codes, scan history and settings in the database.' }
-							checked={ String( settings.delete_data_on_uninstall ) === '1' }
-							onChange={ val => setField( 'delete_data_on_uninstall', val ? 1 : 0 ) }
-							__nextHasNoMarginBottom
-						/>
 					</div>
 				</div>
 
@@ -514,8 +502,26 @@ export default function Settings() {
 					</div>
 				</div>
 
+				{ /* ── Uninstall ── */ }
+				<div className="qrjump-form-section">
+					<div className="qrjump-form-section__header">
+						<h2 className="qrjump-form-section__title">Uninstall</h2>
+					</div>
+					<div className="qrjump-form-section__body">
+						<ToggleControl
+							label="Delete all data when plugin is uninstalled"
+							help={ String( settings.delete_data_on_uninstall ) === '1'
+								? 'Deleting the plugin from the Plugins screen will permanently remove all QR codes, scan history and settings.'
+								: 'Deleting the plugin from the Plugins screen will keep all QR codes, scan history and settings in the database.' }
+							checked={ String( settings.delete_data_on_uninstall ) === '1' }
+							onChange={ val => setField( 'delete_data_on_uninstall', val ? 1 : 0 ) }
+							__nextHasNoMarginBottom
+						/>
+					</div>
+				</div>
+
 				{ /* ── Submit ── */ }
-				<div className="qrjump-form-actions">
+				<div className="qrjump-form-actions qrjump-form-actions--sticky">
 					<Button
 						variant="primary"
 						type="submit"
