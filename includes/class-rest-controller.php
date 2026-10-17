@@ -1254,6 +1254,12 @@ class REST_Controller {
 				$v = strtolower( sanitize_text_field( (string) $v ) );
 				return preg_match( '/^#[0-9a-f]{6}$/', $v ) ? $v : '#ffffff';
 			},
+			'ip_header'                 => static function ( $v ) {
+				return in_array( $v, array( 'remote_addr', 'cloudflare', 'forwarded' ), true ) ? $v : 'remote_addr';
+			},
+			'delete_data_on_uninstall'  => static function ( $v ) {
+				return rest_sanitize_boolean( $v ) ? 1 : 0;
+			},
 		);
 
 		foreach ( $sanitizers as $key => $fn ) {
@@ -1709,7 +1715,9 @@ class REST_Controller {
 			$wpdb->query( "TRUNCATE TABLE {$codes_table}" );  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 			// Plugin settings travel with a full overwrite (never with an append).
+			// Environment-specific settings are never carried across sites.
 			if ( ! empty( $body['settings'] ) && is_array( $body['settings'] ) ) {
+				unset( $body['settings']['ip_header'], $body['settings']['delete_data_on_uninstall'] );
 				$this->save_settings( $body['settings'] );
 				$settings_imported = true;
 			}

@@ -14,6 +14,7 @@ import {
 	TextControl,
 	TextareaControl,
 	SelectControl,
+	ToggleControl,
 	Spinner,
 	Notice,
 } from '@wordpress/components';
@@ -200,6 +201,35 @@ export default function Settings() {
 					</div>
 				</div>
 
+				{ /* ── Visitor IP ── */ }
+				<div className="qrjump-form-section">
+					<div className="qrjump-form-section__header">
+						<h2 className="qrjump-form-section__title">Visitor IP Detection</h2>
+					</div>
+					<div className="qrjump-form-section__body">
+						<p className="qrjump-help-text">
+							Unique vs repeat scans are worked out from a hash of the visitor's IP address.
+							If this site is behind Cloudflare or another reverse proxy, choose the matching
+							option — otherwise every visitor looks like the same IP and almost all scans are
+							counted as repeats. Only enable this if you are actually behind that proxy, as
+							these headers can be faked by direct visitors.
+						</p>
+						<div className="qrjump-form-row">
+							<SelectControl
+								label="Read visitor IP from"
+								value={ settings.ip_header }
+								options={ [
+									{ label: 'Server connection (default, no proxy)', value: 'remote_addr' },
+									{ label: 'Cloudflare (CF-Connecting-IP)',         value: 'cloudflare'  },
+									{ label: 'Other proxy (X-Forwarded-For)',         value: 'forwarded'   },
+								] }
+								onChange={ val => setField( 'ip_header', val ) }
+								__nextHasNoMarginBottom
+							/>
+						</div>
+					</div>
+				</div>
+
 				{ /* ── Inactive codes ── */ }
 				<div className="qrjump-form-section">
 					<div className="qrjump-form-section__header">
@@ -257,6 +287,24 @@ export default function Settings() {
 								__nextHasNoMarginBottom
 							/>
 						</div>
+					</div>
+				</div>
+
+				{ /* ── Uninstall ── */ }
+				<div className="qrjump-form-section">
+					<div className="qrjump-form-section__header">
+						<h2 className="qrjump-form-section__title">Uninstall</h2>
+					</div>
+					<div className="qrjump-form-section__body">
+						<ToggleControl
+							label="Delete all data when plugin is uninstalled"
+							help={ String( settings.delete_data_on_uninstall ) === '1'
+								? 'Deleting the plugin from the Plugins screen will permanently remove all QR codes, scan history and settings.'
+								: 'Deleting the plugin from the Plugins screen will keep all QR codes, scan history and settings in the database.' }
+							checked={ String( settings.delete_data_on_uninstall ) === '1' }
+							onChange={ val => setField( 'delete_data_on_uninstall', val ? 1 : 0 ) }
+							__nextHasNoMarginBottom
+						/>
 					</div>
 				</div>
 

@@ -30,6 +30,8 @@ class Settings {
 		'notify_rate_limit_minutes' => 5,
 		'brand_fg_colour'           => '#000000',     // Default foreground colour for new QR codes
 		'brand_bg_colour'           => '#ffffff',     // Default background colour for new QR codes
+		'ip_header'                 => 'remote_addr', // 'remote_addr' | 'cloudflare' | 'forwarded' — where to read the visitor IP from
+		'delete_data_on_uninstall'  => 0,             // 1 = uninstall.php drops tables and options; 0 = keep everything
 	);
 
 	/**

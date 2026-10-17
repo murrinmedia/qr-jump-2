@@ -98,7 +98,7 @@ class Redirect_Handler {
 
 		// ── Scan limit ────────────────────────────────────────────────────────
 		$max_scans = absint( $code_settings['max_scans'] ?? 0 );
-		if ( $max_scans > 0 && (int) $code->total_scans >= $max_scans ) {
+		if ( $max_scans > 0 && $this->count_scans( (int) $code->id ) >= $max_scans ) {
 			$limit_message = ! empty( $code_settings['max_scans_message'] )
 				? $code_settings['max_scans_message']
 				: '';
@@ -216,14 +216,62 @@ class Redirect_Handler {
 
 		return $wpdb->get_row(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT c.id, c.destination_url, c.status, c.redirect_type, c.settings,
-				        ( SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = c.id ) AS total_scans
+				"SELECT c.id, c.destination_url, c.status, c.redirect_type, c.settings
 				 FROM {$wpdb->prefix}qrjump_codes c
 				 WHERE c.slug = %s
 				 LIMIT 1",
 				$slug
 			)
 		) ?: null;
+	}
+
+	/**
+	 * Total scans recorded for a code.
+	 *
+	 * Only called for codes with a scan limit, so unlimited codes never pay
+	 * for a COUNT(*) on the redirect path.
+	 *
+	 * @param int $qr_code_id
+	 * @return int
+	 */
+	private function count_scans( int $qr_code_id ): int {
+		global $wpdb;
+
+		return (int) $wpdb->get_var(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->prefix}qrjump_scans WHERE qr_code_id = %d",
+				$qr_code_id
+			)
+		);
+	}
+
+	/**
+	 * Resolve the visitor's IP address according to the 'ip_header' setting.
+	 *
+	 * The default ('remote_addr') ignores proxy headers because they can be
+	 * spoofed. Sites behind Cloudflare or another reverse proxy should pick the
+	 * matching option, otherwise every visitor shares the proxy's IP and nearly
+	 * every scan is classed as a repeat. Falls back to REMOTE_ADDR when the
+	 * chosen header is missing or not a valid IP.
+	 *
+	 * @return string
+	 */
+	private function client_ip(): string {
+		$remote_ip = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+
+		switch ( Settings::get( 'ip_header' ) ) {
+			case 'cloudflare':
+				$value = isset( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ? (string) $_SERVER['HTTP_CF_CONNECTING_IP'] : '';
+				break;
+			case 'forwarded':
+				$list  = isset( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ? (string) $_SERVER['HTTP_X_FORWARDED_FOR'] : '';
+				$value = trim( explode( ',', $list )[0] );
+				break;
+			default:
+				return $remote_ip;
+		}
+
+		return false !== filter_var( $value, FILTER_VALIDATE_IP ) ? $value : $remote_ip;
 	}
 
 	/**
@@ -362,7 +410,7 @@ class Redirect_Handler {
 	 */
 	private function build_scan_data( int $qr_code_id ): array {
 		$salt       = (string) get_option( 'qrjump_salt', '' );
-		$remote_ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+		$remote_ip  = $this->client_ip();
 		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] )
 			? substr( (string) $_SERVER['HTTP_USER_AGENT'], 0, 512 )
 			: '';
