@@ -77,7 +77,7 @@ export default function QRStats() {
 				<StatCard
 					label="Last scan"
 					value={ stats.last_scanned_at
-						? new Date( stats.last_scanned_at + 'Z' ).toLocaleDateString()
+						? new Date( stats.last_scanned_at + 'Z' ).toLocaleString( undefined, { dateStyle: 'medium', timeStyle: 'short' } )
 						: 'Never'
 					}
 					small

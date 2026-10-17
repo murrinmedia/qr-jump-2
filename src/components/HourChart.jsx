@@ -39,6 +39,14 @@ export default function HourChart( { data = [], height = 240 } ) {
 		return found ? Number( found.scans ) : 0;
 	} );
 
+	if ( values.every( v => v === 0 ) ) {
+		return (
+			<div className="qrjump-chart qrjump-chart--empty">
+				<p>No scans in this period.</p>
+			</div>
+		);
+	}
+
 	const yMax   = niceMax( Math.max( ...values, 1 ) );
 	const yTicks = [ 0, 0.5, 1 ].map( f => Math.round( f * yMax ) );
 

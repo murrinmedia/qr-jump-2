@@ -229,5 +229,5 @@ function formatRelativeTime( datetimeStr ) {
 	if ( diff < 86400 )     return `${ Math.floor( diff / 3600 ) }h ago`;
 	if ( diff < 86400 * 7 ) return `${ Math.floor( diff / 86400 ) }d ago`;
 
-	return new Date( datetimeStr + 'Z' ).toLocaleDateString();
+	return new Date( datetimeStr + 'Z' ).toLocaleDateString( undefined, { day: 'numeric', month: 'short', year: 'numeric' } );
 }

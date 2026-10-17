@@ -2482,11 +2482,26 @@ body.toplevel_page_qr-jump #wpfooter { display: none; }
 			padding: 0 16px;
 			background: #fff;
 			color: #344054;
-			box-shadow: inset 0 0 0 1px var(--qrjump-border-strong), 0 1px 2px rgba(16, 24, 40, 0.05);
+			// WordPress 7 draws the outline as a border (6.x used an inset shadow),
+			// so set the border explicitly for every state.
+			border: 1px solid var(--qrjump-border-strong);
+			box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 
-			&:hover:not(:disabled) { background: #f9fafb; color: var(--qrjump-text); box-shadow: inset 0 0 0 1px var(--qrjump-border-strong), 0 1px 2px rgba(16, 24, 40, 0.05); }
+			&:hover:not(:disabled, [aria-disabled="true"], .is-pressed) {
+				background: #f9fafb;
+				color: var(--qrjump-text);
+				border-color: var(--qrjump-border-strong);
+				box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+			}
 
-			&.is-destructive { color: var(--qrjump-error); box-shadow: inset 0 0 0 1px #fda29b, 0 1px 2px rgba(16, 24, 40, 0.05); }
+			&:active:not(:disabled) { background: #f2f4f7; border-color: var(--qrjump-border-strong); }
+
+			// Mouse clicks leave focus on the button; only keyboard focus gets the ring.
+			&:focus:not(:focus-visible):not(:active) { border-color: var(--qrjump-border-strong); }
+			&:focus-visible { border-color: var(--qrjump-accent); }
+
+			&.is-destructive,
+			&.is-destructive:hover:not(:disabled) { color: var(--qrjump-error); border-color: #fda29b; }
 			&.is-destructive:hover:not(:disabled) { background: var(--qrjump-error-bg); }
 		}
 
@@ -2959,5 +2974,6 @@ body.toplevel_page_qr-jump #wpfooter { display: none; }
 
 	// ── Focus visibility for links in tables ─────────────────────────────────
 
+	a:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 	a:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: 2px; border-radius: 4px; }
 }

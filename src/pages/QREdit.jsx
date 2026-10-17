@@ -343,7 +343,7 @@ export default function QREdit() {
 						<div className="qrjump-edit-stats__meta">
 							<span className="qrjump-edit-stats__last-scan">
 								{ stats.last_scanned
-									? <>Last scan: <strong>{ new Date( stats.last_scanned + 'Z' ).toLocaleString() }</strong></>
+									? <>Last scan: <strong>{ new Date( stats.last_scanned + 'Z' ).toLocaleString( undefined, { dateStyle: 'medium', timeStyle: 'short' } ) }</strong></>
 									: 'No scans yet'
 								}
 							</span>

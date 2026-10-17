@@ -347,6 +347,8 @@ class REST_Controller {
 	public function get_codes( \WP_REST_Request $request ): \WP_REST_Response {
 		global $wpdb;
 
+		$this->use_request_timezone( $request );
+
 		$codes_table = $wpdb->prefix . 'qrjump_codes';
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
 
@@ -553,6 +555,8 @@ class REST_Controller {
 	 */
 	public function get_code( \WP_REST_Request $request ) {
 		global $wpdb;
+
+		$this->use_request_timezone( $request );
 
 		$codes_table = $wpdb->prefix . 'qrjump_codes';
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
@@ -926,6 +930,8 @@ class REST_Controller {
 	public function get_code_stats( \WP_REST_Request $request ) {
 		global $wpdb;
 
+		$this->use_request_timezone( $request );
+
 		$codes_table = $wpdb->prefix . 'qrjump_codes';
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
 		$id          = absint( $request->get_param( 'id' ) );
@@ -1135,6 +1141,8 @@ class REST_Controller {
 	 */
 	public function get_dashboard( \WP_REST_Request $request ): \WP_REST_Response {
 		global $wpdb;
+
+		$this->use_request_timezone( $request );
 
 		$codes_table = $wpdb->prefix . 'qrjump_codes';
 		$scans_table = $wpdb->prefix . 'qrjump_scans';
@@ -1439,6 +1447,27 @@ class REST_Controller {
 	}
 
 	/**
+	 * Reporting timezone for this request: the viewer's browser timezone when it
+	 * sends a valid ?tz= (an IANA name such as "Australia/Melbourne"), otherwise
+	 * the WordPress site timezone. Charts and "today / this month" counters then
+	 * agree with the local times the admin screens display.
+	 *
+	 * @var \DateTimeZone|null
+	 */
+	private $report_tz = null;
+
+	private function use_request_timezone( \WP_REST_Request $request ): void {
+		$name = (string) $request->get_param( 'tz' );
+		if ( '' !== $name && in_array( $name, \DateTimeZone::listIdentifiers(), true ) ) {
+			$this->report_tz = new \DateTimeZone( $name );
+		}
+	}
+
+	private function tz(): \DateTimeZone {
+		return $this->report_tz ?: wp_timezone();
+	}
+
+	/**
 	 * Period start times for the Today / Week / Month / 30-day counters, as UTC
 	 * datetime strings (scans are stored in UTC). "Today" and "this month" start
 	 * at midnight in the site's timezone, not the database server's.
@@ -1446,7 +1475,7 @@ class REST_Controller {
 	 * @return array{today: string, week: string, month: string, d30: string}
 	 */
 	private function time_bounds(): array {
-		$tz  = wp_timezone();
+		$tz  = $this->tz();
 		$utc = new \DateTimeZone( 'UTC' );
 		$fmt = 'Y-m-d H:i:s';
 
@@ -1464,7 +1493,7 @@ class REST_Controller {
 	 * inside the reporting window shift the affected scans by up to an hour).
 	 */
 	private function tz_offset(): int {
-		return (int) wp_timezone()->getOffset( new \DateTime( 'now', new \DateTimeZone( 'UTC' ) ) );
+		return (int) $this->tz()->getOffset( new \DateTime( 'now', new \DateTimeZone( 'UTC' ) ) );
 	}
 
 	/**
@@ -1472,7 +1501,7 @@ class REST_Controller {
 	 * a chart window that covers $days whole local days including today.
 	 */
 	private function days_since( int $days ): string {
-		return ( new \DateTime( 'today', wp_timezone() ) )
+		return ( new \DateTime( 'today', $this->tz() ) )
 			->modify( '-' . max( 0, $days - 1 ) . ' days' )
 			->setTimezone( new \DateTimeZone( 'UTC' ) )
 			->format( 'Y-m-d H:i:s' );
@@ -1492,7 +1521,7 @@ class REST_Controller {
 			$by_date[ $row->date ] = $row;
 		}
 
-		$today = new \DateTime( 'today', wp_timezone() );
+		$today = new \DateTime( 'today', $this->tz() );
 		$out   = array();
 		for ( $i = $days - 1; $i >= 0; $i-- ) {
 			$date  = ( clone $today )->modify( "-{$i} days" )->format( 'Y-m-d' );

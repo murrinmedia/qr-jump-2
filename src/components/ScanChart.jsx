@@ -1,8 +1,7 @@
 /**
  * Daily scans line chart with gridlines, date labels and a hover tooltip.
  *
- * The last data point is drawn with a dashed segment to show that "today"
- * is still in progress. Sized to its container.
+ * Sized to its container; a dot marks the latest day.
  */
 
 import { useState } from '@wordpress/element';
@@ -38,6 +37,15 @@ export default function ScanChart( { data = [], height = 240 } ) {
 	const PLOT_H = H - PAD_T - PAD_B;
 
 	const values = data.map( d => Number( d.scans ) );
+
+	if ( values.every( v => v === 0 ) ) {
+		return (
+			<div className="qrjump-chart qrjump-chart--empty">
+				<p>No scans in this period.</p>
+			</div>
+		);
+	}
+
 	const yMax   = niceMax( Math.max( ...values, 1 ) );
 	const yTicks = [ 0, 0.25, 0.5, 0.75, 1 ].map( f => Math.round( f * yMax ) );
 
@@ -49,10 +57,9 @@ export default function ScanChart( { data = [], height = 240 } ) {
 	const toY = v => PAD_T + ( 1 - v / yMax ) * PLOT_H;
 
 	const pts       = values.map( ( v, i ) => ( { x: toX( i ), y: toY( v ) } ) );
-	const solidPath = cardinalPath( pts.length > 1 ? pts.slice( 0, -1 ) : pts );
+	const linePath  = cardinalPath( pts );
 	const bottom    = PAD_T + PLOT_H;
 	const fillPath  = `${ cardinalPath( pts ) } L ${ pts[ pts.length - 1 ].x } ${ bottom } L ${ pts[0].x } ${ bottom } Z`;
-	const lastSolid = pts[ pts.length - 2 ] || pts[0];
 	const lastPt    = pts[ pts.length - 1 ];
 
 	function onMove( e ) {
@@ -109,17 +116,10 @@ export default function ScanChart( { data = [], height = 240 } ) {
 
 				<path d={ fillPath } fill="url(#qrjump-scan-fill)" clipPath="url(#qrjump-scan-clip)" />
 
-				<path d={ solidPath } fill="none" stroke={ CHART_ACCENT } strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" clipPath="url(#qrjump-scan-clip)" />
+				<path d={ linePath } fill="none" stroke={ CHART_ACCENT } strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" clipPath="url(#qrjump-scan-clip)" />
 
-				{ pts.length > 1 && (
-					<line
-						x1={ lastSolid.x } y1={ lastSolid.y }
-						x2={ lastPt.x }    y2={ lastPt.y }
-						stroke={ CHART_ACCENT } strokeWidth="2.5"
-						strokeDasharray="5 4" strokeLinecap="round"
-						clipPath="url(#qrjump-scan-clip)"
-					/>
-				) }
+				{ /* Marker on the latest point (today). */ }
+				<circle cx={ lastPt.x } cy={ lastPt.y } r="4" fill={ CHART_ACCENT } />
 
 				{ active && (
 					<g>

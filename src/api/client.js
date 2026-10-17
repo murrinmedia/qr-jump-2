@@ -40,8 +40,17 @@ async function request( endpoint, options = {} ) {
 	return { data, headers: response.headers };
 }
 
+// The viewer's timezone, so the server groups scans by *their* day and hour.
+const VIEWER_TZ = ( () => {
+	try {
+		return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+	} catch ( e ) {
+		return '';
+	}
+} )();
+
 async function get( endpoint, params = {} ) {
-	const qs = new URLSearchParams( params ).toString();
+	const qs = new URLSearchParams( VIEWER_TZ ? { tz: VIEWER_TZ, ...params } : params ).toString();
 	return request( qs ? `${ endpoint }?${ qs }` : endpoint );
 }
 
