@@ -2,7 +2,7 @@
  * Application shell — horizontal top navigation + main content area.
  */
 
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const NAV = [
 	{ to: '/',        label: 'Dashboard', end: true  },
@@ -12,6 +12,7 @@ const NAV = [
 
 export default function Layout( { children } ) {
 	const pluginUrl = window.qrJumpData?.pluginUrl || '';
+	const { pathname } = useLocation();
 
 	return (
 		<div className="qrjump-layout">
@@ -43,8 +44,15 @@ export default function Layout( { children } ) {
 					) ) }
 				</nav>
 
-				<div className="qrjump-topbar__meta">
-					v{ window.qrJumpData?.version }
+				<div className="qrjump-topbar__actions">
+					{ pathname !== '/codes' && pathname !== '/codes/new' && (
+						<NavLink to="/codes/new" className="qrjump-topbar__cta">
+							<span aria-hidden="true">+</span> New QR code
+						</NavLink>
+					) }
+					<div className="qrjump-topbar__meta">
+						v{ window.qrJumpData?.version }
+					</div>
 				</div>
 			</header>
 

@@ -12,6 +12,14 @@
 	margin: 0 !important;
 }
 
+// WordPress pads #wpcontent by 20px, which shows as a grey seam between the
+// admin menu and our header. Remove it, match the page background, and hide
+// the WordPress footer line on QR Jump screens.
+#wpcontent:has(#qrjump-app) { padding-left: 0 !important; }
+body.toplevel_page_qr-jump,
+html.wp-toolbar:has(body.toplevel_page_qr-jump) { background: #f6f7fb; }
+body.toplevel_page_qr-jump #wpfooter { display: none; }
+
 #qrjump-app {
 
 	// ─── Design tokens ────────────────────────────────────────────────────────
@@ -73,7 +81,7 @@
 		gap: 0;
 		background: #fff;
 		border-bottom: 1px solid var(--qrjump-border);
-		padding: 0 40px;
+		padding: 0 max(40px, calc((100% - 1440px) / 2 + 40px));
 		height: var(--qrjump-topbar-h);
 		flex-shrink: 0;
 		position: sticky;
@@ -2849,17 +2857,68 @@
 		.qrjump-topbar { padding: 0 16px; }
 		.qrjump-topbar__nav { overflow-x: auto; }
 		.qrjump-topbar__meta { display: none; }
+		.qrjump-topbar__cta { padding: 0 12px; }
 		.qrjump-page-header { flex-wrap: wrap; }
-		.qrjump-edit-actionbar { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
 		.qrjump-form--settings .qrjump-form-section__header { padding-left: 24px; }
 	}
 
 	// Editor action bar sits flush under the top bar (cancel main's top padding).
-	.qrjump-edit-actionbar { margin-top: -32px; }
-
 	// Narrow number inputs shouldn't squeeze their label.
 	.qrjump-form--settings .qrjump-form-section__body .components-base-control:has(input[type="number"]) { max-width: none; }
 	.qrjump-form--settings .qrjump-form-section__body input[type="number"] { max-width: 200px; }
+
+	// ── Header: quick action, alignment ──────────────────────────────────────
+
+	.qrjump-topbar__actions {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: 16px;
+
+		.qrjump-topbar__meta { margin-left: 0; }
+	}
+
+	.qrjump-topbar__cta {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		height: 36px;
+		padding: 0 14px;
+		border-radius: 10px;
+		background: var(--qrjump-accent);
+		color: #fff;
+		font-size: 13px;
+		font-weight: 600;
+		text-decoration: none;
+		box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+		transition: background 0.12s;
+
+		span { font-size: 16px; line-height: 1; font-weight: 500; }
+
+		&:hover { background: var(--qrjump-accent-hover); color: #fff; }
+		&:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--qrjump-accent); }
+	}
+
+	// ── Editor width ─────────────────────────────────────────────────────────
+	// Cap the form + sidebar so fields don't stretch across a wide monitor, and
+	// keep the sticky toolbar's right edge in line with the sidebar.
+
+	.qrjump-edit-layout { max-width: 1180px; }
+
+	// ── Editor toolbar: floating card, same width as the editor ──────────────
+
+	.qrjump-edit-actionbar {
+		max-width: 1180px;
+		margin: 0 0 24px;
+		padding: 10px 12px 10px 14px;
+		top: calc(32px + var(--qrjump-topbar-h) + 12px);
+		background: rgba(255, 255, 255, 0.92);
+		border: 1px solid var(--qrjump-border);
+		border-radius: var(--qrjump-radius);
+		box-shadow: 0 8px 24px -12px rgba(16, 24, 40, 0.18), 0 1px 2px rgba(16, 24, 40, 0.04);
+
+		@media (max-width: 782px) { top: calc(46px + var(--qrjump-topbar-h) + 8px); }
+	}
 
 	// ── Focus visibility for links in tables ─────────────────────────────────
 
