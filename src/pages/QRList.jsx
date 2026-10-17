@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Pagination from '../components/Pagination';
 import BulkCreate from '../components/BulkCreate';
+import CopyButton from '../components/CopyButton';
 
 const PER_PAGE = 20;
 
@@ -251,8 +252,8 @@ export default function QRList() {
 								<th style={ { textAlign: 'right' } }>Total</th>
 								<th style={ { textAlign: 'right' } }>Today</th>
 								<th style={ { textAlign: 'right' } }>Week</th>
-								<th style={ { textAlign: 'right' } }>Month</th>
 								<th style={ { textAlign: 'right' } }>Last 30</th>
+								<th>Last scan</th>
 								<SortHeader col="status"      label="Status"  current={ orderby } dir={ order } onSort={ handleSort } />
 								<SortHeader col="created_at"  label="Created" current={ orderby } dir={ order } onSort={ handleSort } />
 								<th>Actions</th>
@@ -277,15 +278,36 @@ export default function QRList() {
 											/>
 										</td>
 										<td>
-											<strong style={ { display: 'block' } }>{ code.title || '—' }</strong>
-											<span style={ { fontSize: 11, color: 'var(--qrjump-text-muted)', fontFamily: 'monospace' } }>
-												{ code.slug }
-											</span>
+											<div style={ { display: 'flex', alignItems: 'center', gap: 10 } }>
+												<img
+													src={ api.codes.qrUrl( code.id, { format: 'png', size: 96 } ) }
+													alt=""
+													width={ 40 }
+													height={ 40 }
+													loading="lazy"
+													style={ { borderRadius: 4, border: '1px solid var(--qrjump-border)', flex: 'none' } }
+												/>
+												<div>
+													<strong style={ { display: 'block' } }>{ code.title || '—' }</strong>
+													<span style={ { fontSize: 11, color: 'var(--qrjump-text-muted)', fontFamily: 'monospace' } }>
+														{ code.slug }
+													</span>
+													{ code.short_url && (
+														<span style={ { marginLeft: 8 } } onClick={ e => e.stopPropagation() }>
+															<CopyButton text={ code.short_url } label="Copy link" />
+														</span>
+													) }
+												</div>
+											</div>
 										</td>
 										<td className="qrjump-table__destination" onClick={ e => e.stopPropagation() }>
-											<a href={ code.destination_url } target="_blank" rel="noreferrer" title={ code.destination_url }>
-												{ code.destination_url }
-											</a>
+											{ code.settings?.destination_type === 'vcard' ? (
+												<span style={ { color: 'var(--qrjump-text-muted)' } }>Contact card (vCard)</span>
+											) : (
+												<a href={ code.destination_url } target="_blank" rel="noreferrer" title={ code.destination_url }>
+													{ code.destination_url }
+												</a>
+											) }
 										</td>
 										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
 											{ Number( code.total_scans ).toLocaleString() }
@@ -297,10 +319,12 @@ export default function QRList() {
 											{ Number( code.scans_week ).toLocaleString() }
 										</td>
 										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
-											{ Number( code.scans_month ).toLocaleString() }
-										</td>
-										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
 											{ Number( code.scans_30d ).toLocaleString() }
+										</td>
+										<td style={ { whiteSpace: 'nowrap', color: 'var(--qrjump-text-muted)', fontSize: 12 } }>
+											{ code.last_scanned_at
+												? new Date( code.last_scanned_at.replace( ' ', 'T' ) + 'Z' ).toLocaleString( undefined, { dateStyle: 'medium', timeStyle: 'short' } )
+												: 'Never' }
 										</td>
 										<td>
 											<span className={ `qrjump-badge qrjump-badge--${ code.status ? 'active' : 'inactive' }` }>
@@ -316,9 +340,10 @@ export default function QRList() {
 												size="small"
 												onClick={ e => handleDuplicate( e, code.id ) }
 												style={ { marginRight: 6 } }
-												title="Duplicate"
+												title="Duplicate this code"
+												aria-label={ `Duplicate ${ code.title || code.slug }` }
 											>
-												⧉
+												⧉ Duplicate
 											</Button>
 											<Button
 												variant="tertiary"

@@ -402,14 +402,14 @@ class REST_Controller {
 					   qr_code_id,
 					   COUNT(*)                                                                           AS total,
 					   MAX(scanned_at)                                                                    AS last_scanned_at,
-					   SUM(CASE WHEN scanned_at >= CURDATE()                         THEN 1 ELSE 0 END)  AS scans_today,
-					   SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)  THEN 1 ELSE 0 END)  AS scans_week,
-					   SUM(CASE WHEN scanned_at >= DATE_FORMAT(NOW(), '%%Y-%%m-01') THEN 1 ELSE 0 END)  AS scans_month,
-					   SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)  AS scans_30d
+					   SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_today,
+					   SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_week,
+					   SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_month,
+					   SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_30d
 					 FROM {$scans_table}
 					 WHERE is_bot = 0 AND qr_code_id IN ({$placeholders})
 					 GROUP BY qr_code_id",
-					$ids
+					array_merge( array_values( $this->time_bounds() ), $ids )
 				)
 			);
 			foreach ( $scan_rows as $row ) {
@@ -574,13 +574,13 @@ class REST_Controller {
 					SUM(scan_type = 'unique')                                                         AS unique_scans,
 					SUM(scan_type = 'repeat')                                                         AS repeat_scans,
 					MAX(scanned_at)                                                                    AS last_scanned_at,
-					SUM(CASE WHEN scanned_at >= CURDATE()                         THEN 1 ELSE 0 END)  AS scans_today,
-					SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)  THEN 1 ELSE 0 END)  AS scans_week,
-					SUM(CASE WHEN scanned_at >= DATE_FORMAT(NOW(), '%%Y-%%m-01') THEN 1 ELSE 0 END)  AS scans_month,
-					SUM(CASE WHEN scanned_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)  AS scans_30d
+					SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_today,
+					SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_week,
+					SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_month,
+					SUM(CASE WHEN scanned_at >= %s THEN 1 ELSE 0 END)  AS scans_30d
 				 FROM {$scans_table}
 				 WHERE is_bot = 0 AND qr_code_id = %d",
-				$id
+				...array_merge( array_values( $this->time_bounds() ), array( $id ) )
 			)
 		);
 
@@ -956,27 +956,34 @@ class REST_Controller {
 			)
 		);
 
-		$since = gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) );
-		$daily = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->prepare(
-				"SELECT DATE(scanned_at) AS date, COUNT(*) AS scans,
-					SUM(scan_type = 'unique') AS unique_scans
-				 FROM {$scans_table}
-				 WHERE is_bot = 0 AND qr_code_id = %d AND scanned_at >= %s
-				 GROUP BY DATE(scanned_at)
-				 ORDER BY date ASC",
-				$id,
-				$since
-			)
+		// Scans are stored in UTC; group by the site's local day / hour.
+		$offset = $this->tz_offset();
+		$since  = $this->days_since( 30 );
+		$daily  = $this->fill_days(
+			$wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare(
+					"SELECT DATE(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS date, COUNT(*) AS scans,
+						SUM(scan_type = 'unique') AS unique_scans
+					 FROM {$scans_table}
+					 WHERE is_bot = 0 AND qr_code_id = %d AND scanned_at >= %s
+					 GROUP BY date
+					 ORDER BY date ASC",
+					$offset,
+					$id,
+					$since
+				)
+			),
+			30
 		);
 
 		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT HOUR(scanned_at) AS hour, COUNT(*) AS scans
+				"SELECT HOUR(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS hour, COUNT(*) AS scans
 				 FROM {$scans_table}
 				 WHERE is_bot = 0 AND qr_code_id = %d AND scanned_at >= %s
-				 GROUP BY HOUR(scanned_at)
+				 GROUP BY hour
 				 ORDER BY hour ASC",
+				$offset,
 				$id,
 				$since
 			)
@@ -1176,24 +1183,34 @@ class REST_Controller {
 			 LIMIT 10"
 		);
 
-		$since = gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) );
-		$daily = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->prepare(
-				"SELECT DATE(scanned_at) AS date, COUNT(*) AS scans
-				 FROM {$scans_table}
-				 WHERE is_bot = 0 AND scanned_at >= %s
-				 GROUP BY DATE(scanned_at)
-				 ORDER BY date ASC",
-				$since
-			)
+		// Scans are stored in UTC; group by the site's local day / hour.
+		$offset = $this->tz_offset();
+		$since  = $this->days_since( 30 );
+		$daily  = $this->fill_days(
+			$wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare(
+					"SELECT DATE(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS date, COUNT(*) AS scans,
+						SUM(scan_type = 'unique') AS unique_scans
+					 FROM {$scans_table}
+					 WHERE is_bot = 0 AND scanned_at >= %s
+					 GROUP BY date
+					 ORDER BY date ASC",
+					$offset,
+					$since
+				)
+			),
+			30
 		);
 
 		$hourly = $wpdb->get_results(  // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT HOUR(scanned_at) AS hour, COUNT(*) AS scans
-			 FROM {$scans_table}
-			 WHERE is_bot = 0
-			 GROUP BY HOUR(scanned_at)
-			 ORDER BY hour ASC"
+			$wpdb->prepare(
+				"SELECT HOUR(DATE_ADD(scanned_at, INTERVAL %d SECOND)) AS hour, COUNT(*) AS scans
+				 FROM {$scans_table}
+				 WHERE is_bot = 0
+				 GROUP BY hour
+				 ORDER BY hour ASC",
+				$offset
+			)
 		);
 
 		return rest_ensure_response(
@@ -1333,6 +1350,75 @@ class REST_Controller {
 	// =========================================================================
 	// Private helpers
 	// =========================================================================
+
+	/**
+	 * Period start times for the Today / Week / Month / 30-day counters, as UTC
+	 * datetime strings (scans are stored in UTC). "Today" and "this month" start
+	 * at midnight in the site's timezone, not the database server's.
+	 *
+	 * @return array{today: string, week: string, month: string, d30: string}
+	 */
+	private function time_bounds(): array {
+		$tz  = wp_timezone();
+		$utc = new \DateTimeZone( 'UTC' );
+		$fmt = 'Y-m-d H:i:s';
+
+		return array(
+			'today' => ( new \DateTime( 'today', $tz ) )->setTimezone( $utc )->format( $fmt ),
+			'week'  => gmdate( $fmt, time() - 7 * DAY_IN_SECONDS ),
+			'month' => ( new \DateTime( 'first day of this month midnight', $tz ) )->setTimezone( $utc )->format( $fmt ),
+			'd30'   => gmdate( $fmt, time() - 30 * DAY_IN_SECONDS ),
+		);
+	}
+
+	/**
+	 * The site timezone's current UTC offset in seconds. Used to shift stored
+	 * UTC times into local time when grouping by day or hour (DST changes
+	 * inside the reporting window shift the affected scans by up to an hour).
+	 */
+	private function tz_offset(): int {
+		return (int) wp_timezone()->getOffset( new \DateTime( 'now', new \DateTimeZone( 'UTC' ) ) );
+	}
+
+	/**
+	 * UTC datetime string for local midnight, $days - 1 days ago — the start of
+	 * a chart window that covers $days whole local days including today.
+	 */
+	private function days_since( int $days ): string {
+		return ( new \DateTime( 'today', wp_timezone() ) )
+			->modify( '-' . max( 0, $days - 1 ) . ' days' )
+			->setTimezone( new \DateTimeZone( 'UTC' ) )
+			->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
+	 * Expand sparse per-day rows into one entry for each of the last $days local
+	 * days, so charts show quiet days as zero instead of skipping them.
+	 *
+	 * @param array<int, object> $rows Rows with date, scans and optionally unique_scans.
+	 * @param int                $days
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function fill_days( array $rows, int $days ): array {
+		$by_date = array();
+		foreach ( $rows as $row ) {
+			$by_date[ $row->date ] = $row;
+		}
+
+		$today = new \DateTime( 'today', wp_timezone() );
+		$out   = array();
+		for ( $i = $days - 1; $i >= 0; $i-- ) {
+			$date  = ( clone $today )->modify( "-{$i} days" )->format( 'Y-m-d' );
+			$row   = $by_date[ $date ] ?? null;
+			$out[] = array(
+				'date'         => $date,
+				'scans'        => (int) ( $row->scans ?? 0 ),
+				'unique_scans' => (int) ( $row->unique_scans ?? 0 ),
+			);
+		}
+
+		return $out;
+	}
 
 	/**
 	 * Shape a code DB row into an API response array.

@@ -78,6 +78,7 @@ export default function QREdit() {
 	const [ statsLoading, setStatsLoading ] = useState( false );
 	const [ notesOpen,   setNotesOpen   ] = useState( false );
 	const [ notifOpen,   setNotifOpen   ] = useState( false );
+	const [ utmOpen,     setUtmOpen     ] = useState( false );
 	const [ vcardPreviewOpen, setVcardPreviewOpen ] = useState( false );
 	const [ savedForm,   setSavedForm   ] = useState( null );
 	const [ toast,       setToast       ] = useState( null );
@@ -442,6 +443,21 @@ export default function QREdit() {
 									/>
 								</div>
 							) }
+							{ form.settings.destination_type !== 'vcard' && (
+								<div className="qrjump-form-row">
+									<SelectControl
+										label="Redirect type"
+										value={ String( form.redirect_type ) }
+										options={ [
+											{ label: '302 — Temporary (recommended)', value: '302' },
+											{ label: '301 — Permanent',                value: '301' },
+										] }
+										onChange={ val => setField( 'redirect_type', parseInt( val, 10 ) ) }
+										help="Use 302 so you can change the destination later. Browsers and search engines cache 301 redirects, so visitors may keep going to the old destination after you change it."
+										__nextHasNoMarginBottom
+									/>
+								</div>
+							) }
 						</div>
 					</div>
 
@@ -540,10 +556,22 @@ export default function QREdit() {
 					</div>
 
 					{ form.settings.destination_type !== 'vcard' && (
-						<div className="qrjump-form-section">
-							<div className="qrjump-form-section__header">
+						<div className="qrjump-form-section qrjump-form-section--collapsible">
+							<button
+								type="button"
+								className="qrjump-form-section__header qrjump-form-section__header--btn"
+								onClick={ () => setUtmOpen( o => ! o ) }
+								aria-expanded={ utmOpen }
+							>
 								<h2 className="qrjump-form-section__title">Query String &amp; UTM Tracking</h2>
-							</div>
+								<div className="qrjump-form-section__header-right">
+									{ ( form.settings.pass_query_string || [ 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content' ].some( k => form.settings[ k ] ) ) && (
+										<span className="qrjump-form-section__badge">On</span>
+									) }
+									<span className="qrjump-form-section__chevron">{ utmOpen ? '▲' : '▼' }</span>
+								</div>
+							</button>
+							{ utmOpen && (
 							<div className="qrjump-form-section__body">
 								<ToggleControl
 									label="Pass query string through to the destination"
@@ -565,6 +593,7 @@ export default function QREdit() {
 									<TextControl label="utm_content" value={ form.settings.utm_content } onChange={ val => setSetting( 'utm_content', val ) } __nextHasNoMarginBottom />
 								</div>
 							</div>
+							) }
 						</div>
 					) }
 
