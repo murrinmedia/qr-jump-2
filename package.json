@@ -1,6 +1,6 @@
 {
     "name": "qr-jump",
-    "version": "1.0.35",
+    "version": "1.0.36",
     "description": "QR Jump WordPress Plugin — React admin UI",
     "private": true,
     "scripts": {

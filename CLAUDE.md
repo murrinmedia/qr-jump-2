@@ -19,7 +19,7 @@ There is no test suite. To verify changes, install the plugin in a WordPress sit
 
 ## Releasing
 
-Version lives in two places in [qr-jump.php](qr-jump.php): the `Version:` header and the `QRJUMP_VERSION` constant — bump both (commits are named like "v1.0.33 — description"). Pushing a `v*` tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds assets, strips dev files, and attaches `qr-jump.zip` to a GitHub Release. Installed sites self-update from that release asset via `plugin-update-checker` (repo `murrinmedia/qr-jump-2`), so the zip layout (top-level `qr-jump/` folder) matters. `package.json`'s version is unrelated and unused.
+Version lives in two places in [qr-jump.php](qr-jump.php): the `Version:` header and the `QRJUMP_VERSION` constant — bump both (commits are named like "v1.0.33 — description"). Keep the rsync excludes in the workflow anchored (`/src`, not `src`) — an unanchored `src` strips the QR libraries' own `src/` folders out of `vendor/` and breaks QR generation on every site updated from the zip; the workflow's "Verify zip contents" step guards this. Pushing a `v*` tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds assets, strips dev files, and attaches `qr-jump.zip` to a GitHub Release. Installed sites self-update from that release asset via `plugin-update-checker` (repo `murrinmedia/qr-jump-2`), so the zip layout (top-level `qr-jump/` folder) matters. `package.json`'s version is unrelated and unused.
 
 ## Architecture
 
