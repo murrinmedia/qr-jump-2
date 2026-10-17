@@ -74,9 +74,6 @@ export default function QRStats() {
 				<StatCard label="Total scans" value={ stats.total }        previous={ stats.previous ? stats.previous.total : null }        previousLabel={ days > 0 ? `previous ${ days } days` : '' } />
 				<StatCard label="Unique"      value={ stats.unique_scans } previous={ stats.previous ? stats.previous.unique_scans : null } previousLabel={ days > 0 ? `previous ${ days } days` : '' } />
 				<StatCard label="Repeat"      value={ stats.repeat_scans } previous={ stats.previous ? stats.previous.repeat_scans : null } previousLabel={ days > 0 ? `previous ${ days } days` : '' } />
-				{ stats.bot_scans > 0 && (
-					<StatCard label="Bot hits (excluded)" value={ stats.bot_scans } />
-				) }
 				<StatCard
 					label="Last scan"
 					value={ stats.last_scanned_at
@@ -86,6 +83,12 @@ export default function QRStats() {
 					small
 				/>
 			</div>
+
+			{ stats.bot_scans > 0 && (
+				<p className="qrjump-footnote" style={ { marginTop: -12, marginBottom: 20 } }>
+					{ Number( stats.bot_scans ).toLocaleString() } bot and link-preview hits in this period are excluded from these figures.
+				</p>
+			) }
 
 			{ /* ── 30-day chart ── */ }
 			<div className="qrjump-card" style={ { marginBottom: 20 } }>

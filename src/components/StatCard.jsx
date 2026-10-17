@@ -7,17 +7,19 @@
  *   label: string,
  *   value: number|string,
  *   small?: boolean,
+ *   note?: string,            Muted line under the value (e.g. "of 4 codes").
  *   previous?: number|null,   Previous-period value; omit/null for no indicator.
- *   previousLabel?: string,   Tooltip, e.g. "previous 30 days".
+ *   previousLabel?: string,   e.g. "previous 30 days".
  * }} props
  */
-export default function StatCard( { label, value, small = false, previous = null, previousLabel = 'previous period' } ) {
+export default function StatCard( { label, value, small = false, note = '', previous = null, previousLabel = 'previous period' } ) {
 	return (
 		<div className="qrjump-stat-card">
 			<div className="qrjump-stat-card__label">{ label }</div>
-			<div className="qrjump-stat-card__value" style={ small ? { fontSize: 16 } : {} }>
+			<div className="qrjump-stat-card__value" style={ small ? { fontSize: 18 } : {} }>
 				{ typeof value === 'number' ? Number( value ).toLocaleString() : value }
 			</div>
+			{ note && <div className="qrjump-stat-card__note">{ note }</div> }
 			{ typeof value === 'number' && previous !== null && previous !== undefined && (
 				<Delta value={ value } previous={ previous } previousLabel={ previousLabel } />
 			) }
@@ -32,22 +34,27 @@ function Delta( { value, previous, previousLabel } ) {
 		return null;
 	}
 
+	let tone = 'flat';
+	let text = 'No change';
+
 	if ( previous === 0 ) {
-		return <div className="qrjump-stat-card__delta qrjump-stat-card__delta--up" title={ title }>▲ New</div>;
-	}
-
-	const pct = Math.round( ( ( value - previous ) / previous ) * 100 );
-
-	if ( pct === 0 ) {
-		return <div className="qrjump-stat-card__delta qrjump-stat-card__delta--flat" title={ title }>– No change</div>;
+		tone = 'up';
+		text = '▲ New';
+	} else {
+		const pct = Math.round( ( ( value - previous ) / previous ) * 100 );
+		if ( pct > 0 ) {
+			tone = 'up';
+			text = `▲ ${ pct }%`;
+		} else if ( pct < 0 ) {
+			tone = 'down';
+			text = `▼ ${ Math.abs( pct ) }%`;
+		}
 	}
 
 	return (
-		<div
-			className={ `qrjump-stat-card__delta qrjump-stat-card__delta--${ pct > 0 ? 'up' : 'down' }` }
-			title={ title }
-		>
-			{ pct > 0 ? '▲' : '▼' } { Math.abs( pct ) }% <span>vs { previousLabel }</span>
+		<div className="qrjump-stat-card__delta" title={ title }>
+			<span className={ `qrjump-stat-card__pill qrjump-stat-card__pill--${ tone }` }>{ text }</span>
+			<span className="qrjump-stat-card__delta-label">vs { previousLabel }</span>
 		</div>
 	);
 }

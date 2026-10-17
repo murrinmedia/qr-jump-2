@@ -142,7 +142,10 @@ export default function Settings() {
 	return (
 		<>
 			<div className="qrjump-page-header">
-				<h1 className="qrjump-page-header__title">Settings</h1>
+				<div>
+					<h1 className="qrjump-page-header__title">Settings</h1>
+					<p className="qrjump-page-header__subtitle">Control how QR Jump redirects, tracks and reports</p>
+				</div>
 			</div>
 
 			{ notice && (
@@ -156,7 +159,7 @@ export default function Settings() {
 				</Notice>
 			) }
 
-			<form className="qrjump-form" onSubmit={ handleSubmit }>
+			<form className="qrjump-form qrjump-form--settings" onSubmit={ handleSubmit }>
 
 				{ /* ── Brand colours ── */ }
 				<div className="qrjump-form-section">

@@ -132,10 +132,13 @@ export default function QRList() {
 	return (
 		<>
 			<div className="qrjump-page-header">
-				<h1 className="qrjump-page-header__title">
-					QR Codes
-					{ total > 0 && <span className="qrjump-page-header__count">{ total }</span> }
-				</h1>
+				<div>
+					<h1 className="qrjump-page-header__title">
+						QR Codes
+						{ total > 0 && <span className="qrjump-page-header__count">{ total }</span> }
+					</h1>
+					<p className="qrjump-page-header__subtitle">Create, track and manage your dynamic QR codes</p>
+				</div>
 				<div style={ { display: 'flex', gap: 8 } }>
 					<Button variant="secondary" onClick={ () => setBulkCreateOpen( true ) }>
 						Bulk Create
@@ -251,11 +254,9 @@ export default function QRList() {
 								<th>Destination</th>
 								<th style={ { textAlign: 'right' } }>Total</th>
 								<th style={ { textAlign: 'right' } }>Today</th>
-								<th style={ { textAlign: 'right' } }>Week</th>
 								<th style={ { textAlign: 'right' } }>Last 30</th>
 								<th>Last scan</th>
 								<SortHeader col="status"      label="Status"  current={ orderby } dir={ order } onSort={ handleSort } />
-								<SortHeader col="created_at"  label="Created" current={ orderby } dir={ order } onSort={ handleSort } />
 								<th>Actions</th>
 							</tr>
 						</thead>
@@ -287,16 +288,16 @@ export default function QRList() {
 													loading="lazy"
 													style={ { borderRadius: 4, border: '1px solid var(--qrjump-border)', flex: 'none' } }
 												/>
-												<div>
-													<strong style={ { display: 'block' } }>{ code.title || '—' }</strong>
-													<span style={ { fontSize: 11, color: 'var(--qrjump-text-muted)', fontFamily: 'monospace' } }>
-														{ code.slug }
+												<div className="qrjump-code-identity">
+													<strong className="qrjump-code-identity__title">{ code.title || '—' }</strong>
+													<span className="qrjump-code-identity__meta">
+														<span className="qrjump-code-identity__slug">/{ code.slug }</span>
+														{ code.short_url && (
+															<span onClick={ e => e.stopPropagation() }>
+																<CopyButton text={ code.short_url } label="Copy link" />
+															</span>
+														) }
 													</span>
-													{ code.short_url && (
-														<span style={ { marginLeft: 8 } } onClick={ e => e.stopPropagation() }>
-															<CopyButton text={ code.short_url } label="Copy link" />
-														</span>
-													) }
 												</div>
 											</div>
 										</td>
@@ -316,14 +317,11 @@ export default function QRList() {
 											{ Number( code.scans_today ).toLocaleString() }
 										</td>
 										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
-											{ Number( code.scans_week ).toLocaleString() }
-										</td>
-										<td style={ { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }>
 											{ Number( code.scans_30d ).toLocaleString() }
 										</td>
 										<td style={ { whiteSpace: 'nowrap', color: 'var(--qrjump-text-muted)', fontSize: 12 } }>
 											{ code.last_scanned_at
-												? new Date( code.last_scanned_at.replace( ' ', 'T' ) + 'Z' ).toLocaleString( undefined, { dateStyle: 'medium', timeStyle: 'short' } )
+												? new Date( code.last_scanned_at.replace( ' ', 'T' ) + 'Z' ).toLocaleString( undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' } )
 												: 'Never' }
 										</td>
 										<td>
@@ -331,17 +329,11 @@ export default function QRList() {
 												{ code.status ? 'Active' : 'Inactive' }
 											</span>
 										</td>
-										<td style={ { whiteSpace: 'nowrap', color: 'var(--qrjump-text-muted)', fontSize: 12 } }>
-											{ code.created_at
-												? new Date( code.created_at.replace( ' ', 'T' ) + 'Z' ).toLocaleDateString( undefined, { dateStyle: 'medium' } )
-												: '—' }
-										</td>
 										<td style={ { whiteSpace: 'nowrap' } } onClick={ e => e.stopPropagation() }>
 											<Button
-												variant="secondary"
+												variant="tertiary"
 												size="small"
 												onClick={ e => handleDuplicate( e, code.id ) }
-												style={ { marginRight: 6 } }
 												title="Duplicate this code"
 												aria-label={ `Duplicate ${ code.title || code.slug }` }
 											>

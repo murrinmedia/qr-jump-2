@@ -16,30 +16,42 @@
 
 	// ─── Design tokens ────────────────────────────────────────────────────────
 
-	--qrjump-accent:          #2271b1;
-	--qrjump-accent-hover:    #135e96;
-	--qrjump-accent-light:    #e8f0fb;
-	--qrjump-success:         #1a7e39;
-	--qrjump-success-bg:      #ecfdf5;
-	--qrjump-error:           #b91c1c;
-	--qrjump-error-bg:        #fef2f2;
-	--qrjump-bg:              #f0f0f1;
+	--qrjump-accent:          #3924b2;
+	--qrjump-accent-hover:    #2e1c95;
+	--qrjump-accent-light:    #f1eefc;
+	--qrjump-accent-ring:     rgba(57, 36, 178, 0.16);
+	--qrjump-success:         #15803d;
+	--qrjump-success-bg:      #ecfdf3;
+	--qrjump-error:           #b42318;
+	--qrjump-error-bg:        #fef3f2;
+	--qrjump-bg:              #f6f7fb;
 	--qrjump-surface:         #ffffff;
-	--qrjump-border:          #dcdcde;
-	--qrjump-border-light:    #f0f0f0;
-	--qrjump-text:            #1e1e1e;
-	--qrjump-text-muted:      #757575;
-	--qrjump-text-subtle:     #a8a8a8;
-	--qrjump-heading:         #374151;
-	--qrjump-radius:          8px;
-	--qrjump-radius-sm:       5px;
-	--qrjump-shadow:          0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+	--qrjump-border:          #e4e7ee;
+	--qrjump-border-strong:   #d0d5dd;
+	--qrjump-border-light:    #eef0f5;
+	--qrjump-text:            #101828;
+	--qrjump-text-muted:      #667085;
+	--qrjump-text-subtle:     #98a2b3;
+	--qrjump-heading:         #101828;
+	--qrjump-radius:          14px;
+	--qrjump-radius-sm:       8px;
+	--qrjump-shadow:          0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+	--qrjump-topbar-h:        64px;
 
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, sans-serif;
+	// WordPress components (buttons, toggles, focus rings) read this colour.
+	--wp-admin-theme-color:            #3924b2;
+	--wp-admin-theme-color--rgb:       57, 36, 178;
+	--wp-admin-theme-color-darker-10:  #2e1c95;
+	--wp-admin-theme-color-darker-10--rgb: 46, 28, 149;
+	--wp-admin-theme-color-darker-20:  #241676;
+	--wp-admin-theme-color-darker-20--rgb: 36, 22, 118;
+
+	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, sans-serif;
+	-webkit-font-smoothing: antialiased;
 	background: var(--qrjump-bg);
 	min-height: 100vh;
 	color: var(--qrjump-text);
-	font-size: 13px;
+	font-size: 14px;
 	line-height: 1.5;
 	box-sizing: border-box;
 
@@ -61,8 +73,8 @@
 		gap: 0;
 		background: #fff;
 		border-bottom: 1px solid var(--qrjump-border);
-		padding: 0 24px;
-		height: 52px;
+		padding: 0 40px;
+		height: var(--qrjump-topbar-h);
 		flex-shrink: 0;
 		position: sticky;
 		top: 32px; // below WP admin bar
@@ -954,7 +966,7 @@
 
 	.qrjump-edit-actionbar {
 		position: sticky;
-		top: 84px; // 32px WP admin bar + 52px plugin topbar
+		top: calc(32px + var(--qrjump-topbar-h)); // WP admin bar + plugin topbar
 		z-index: 90;
 		background: #fff;
 		border-bottom: 1px solid #e8e8e8;
@@ -966,7 +978,7 @@
 		margin: 0 -24px 20px;
 		box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 
-		@media (max-width: 782px) { top: 116px; }
+		@media (max-width: 782px) { top: calc(46px + var(--qrjump-topbar-h)); }
 		@media (max-width: 700px) {
 			flex-direction: column;
 			align-items: stretch;
@@ -2113,38 +2125,6 @@
 		margin-bottom: 6px;
 	}
 
-	// Period selector (7 / 30 / 90 days / all time).
-	.qrjump-range-select {
-		display: inline-flex;
-		border: 1px solid var(--qrjump-border);
-		border-radius: 6px;
-		background: var(--qrjump-surface);
-		overflow: hidden;
-
-		&__btn {
-			appearance: none;
-			border: 0;
-			border-right: 1px solid var(--qrjump-border);
-			background: transparent;
-			padding: 6px 12px;
-			font-size: 12px;
-			font-weight: 500;
-			color: var(--qrjump-text-muted);
-			cursor: pointer;
-
-			&:last-child { border-right: 0; }
-			&:hover { background: var(--qrjump-bg); color: var(--qrjump-text); }
-			&:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: -2px; }
-
-			&--active,
-			&--active:hover {
-				background: var(--qrjump-accent-light);
-				color: var(--qrjump-accent);
-				font-weight: 600;
-			}
-		}
-	}
-
 	// Heading row above a group of charts.
 	.qrjump-range-row {
 		display: flex;
@@ -2168,20 +2148,6 @@
 		color: var(--qrjump-text-muted);
 	}
 
-	// Change versus the previous period, under a stat value.
-	.qrjump-stat-card__delta {
-		margin-top: 8px;
-		font-size: 12px;
-		font-weight: 600;
-		line-height: 1.2;
-
-		span { font-weight: 400; color: var(--qrjump-text-muted); }
-
-		&--up   { color: var(--qrjump-success); }
-		&--down { color: var(--qrjump-error); }
-		&--flat { color: var(--qrjump-text-muted); font-weight: 400; }
-	}
-
 	// Settings: Save bar stays visible while scrolling the long page.
 	.qrjump-form-actions--sticky {
 		position: sticky;
@@ -2193,4 +2159,709 @@
 		border-top: 1px solid var(--qrjump-border);
 		box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 	}
+}
+
+// ─── Premium layer ────────────────────────────────────────────────────────────
+// Visual refinement on top of the base components: calmer surfaces, larger
+// radii, soft elevation, pill badges, neutral secondary buttons and a clear
+// focus ring. Colours come from the tokens at the top of this file.
+
+#qrjump-app {
+
+	// ── Shell ────────────────────────────────────────────────────────────────
+
+	.qrjump-topbar {
+		border-bottom-color: var(--qrjump-border);
+		box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02);
+
+		&__logo { height: 30px; }
+		&__brand { margin-right: 36px; }
+
+		&__nav-link {
+			padding: 0 18px;
+			font-size: 14px;
+			border-bottom-width: 2px;
+
+			&--active { font-weight: 600; }
+		}
+
+		&__meta {
+			font-size: 11px;
+			font-weight: 500;
+			color: var(--qrjump-text-muted);
+			background: var(--qrjump-bg);
+			border: 1px solid var(--qrjump-border);
+			border-radius: 999px;
+			padding: 3px 10px;
+		}
+	}
+
+	.qrjump-main {
+		width: 100%;
+		max-width: 1440px;
+		margin: 0 auto;
+		padding: 32px 40px 56px;
+	}
+
+	.qrjump-page-header {
+		margin-bottom: 28px;
+		align-items: flex-end;
+
+		&__title {
+			font-size: 26px;
+			font-weight: 650;
+			letter-spacing: -0.02em;
+			line-height: 1.2;
+			color: var(--qrjump-text);
+		}
+
+		&__subtitle {
+			margin: 6px 0 0;
+			font-size: 14px;
+			color: var(--qrjump-text-muted);
+		}
+
+		&__count {
+			display: inline-block;
+			vertical-align: middle;
+			margin-left: 10px;
+			padding: 2px 10px;
+			border-radius: 999px;
+			background: var(--qrjump-accent-light);
+			color: var(--qrjump-accent);
+			font-size: 13px;
+			font-weight: 600;
+			letter-spacing: 0;
+		}
+	}
+
+	// ── Cards ────────────────────────────────────────────────────────────────
+
+	.qrjump-card,
+	.qrjump-stat-card,
+	.qrjump-form-section,
+	.qrjump-sidebar-panel,
+	.qrjump-qr-preview,
+	.qrjump-table-wrap,
+	.qrjump-edit-stats {
+		border-radius: var(--qrjump-radius);
+		border: 1px solid var(--qrjump-border);
+		box-shadow: var(--qrjump-shadow);
+	}
+
+	.qrjump-card {
+		&__header { padding: 18px 24px; border-bottom-color: var(--qrjump-border-light); }
+		&__title { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; color: var(--qrjump-text); }
+		&__content { padding: 24px; }
+	}
+
+	.qrjump-card__subtitle {
+		margin-left: 8px;
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--qrjump-text-muted);
+	}
+
+	// ── Stat cards ───────────────────────────────────────────────────────────
+
+	.qrjump-stats-grid {
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 20px;
+		margin-bottom: 20px;
+	}
+
+	.qrjump-stat-card {
+		padding: 22px 24px;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+
+		&__label {
+			font-size: 13px;
+			font-weight: 500;
+			text-transform: none;
+			letter-spacing: 0;
+			color: var(--qrjump-text-muted);
+			margin: 0 0 4px;
+		}
+
+		&__value {
+			font-size: 32px;
+			font-weight: 650;
+			letter-spacing: -0.03em;
+			line-height: 1.1;
+		}
+
+		&__note {
+			font-size: 13px;
+			color: var(--qrjump-text-muted);
+		}
+
+		&__delta {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 4px 8px;
+			margin-top: 10px;
+		}
+
+		&__delta-label {
+			font-size: 12px;
+			color: var(--qrjump-text-muted);
+		}
+
+		&__pill {
+			display: inline-flex;
+			align-items: center;
+			padding: 2px 8px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 1.5;
+
+			&--up   { background: var(--qrjump-success-bg); color: var(--qrjump-success); }
+			&--down { background: var(--qrjump-error-bg);   color: var(--qrjump-error); }
+			&--flat { background: var(--qrjump-border-light); color: var(--qrjump-text-muted); }
+		}
+	}
+
+	.qrjump-footnote {
+		margin: 0 0 28px;
+		font-size: 13px;
+		color: var(--qrjump-text-muted);
+
+		&::before {
+			content: "";
+			display: inline-block;
+			width: 6px;
+			height: 6px;
+			margin-right: 8px;
+			border-radius: 50%;
+			background: var(--qrjump-text-subtle);
+			vertical-align: middle;
+		}
+	}
+
+	.qrjump-dashboard-grid { gap: 20px; }
+
+	// ── Period selector (segmented control) ──────────────────────────────────
+
+	.qrjump-range-select {
+		display: inline-flex;
+		gap: 2px;
+		padding: 3px;
+		background: var(--qrjump-border-light);
+		border: 0;
+		border-radius: 10px;
+		overflow: visible;
+
+		&__btn {
+			border: 0;
+			border-radius: 8px;
+			padding: 7px 14px;
+			font-size: 13px;
+			font-weight: 500;
+			color: var(--qrjump-text-muted);
+			transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+
+			&:hover { background: rgba(255, 255, 255, 0.6); color: var(--qrjump-text); }
+			&:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: 1px; }
+
+			&--active,
+			&--active:hover {
+				background: #fff;
+				color: var(--qrjump-text);
+				font-weight: 600;
+				box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1), 0 0 0 1px rgba(16, 24, 40, 0.04);
+			}
+		}
+	}
+
+	.qrjump-range-row {
+		margin: 32px 0 14px;
+
+		&__title { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+	}
+
+	// ── Tables ───────────────────────────────────────────────────────────────
+
+	.qrjump-table {
+		th {
+			background: #f9fafb;
+			padding: 12px 20px;
+			font-size: 12px;
+			font-weight: 600;
+			color: var(--qrjump-text-muted);
+			border-bottom: 1px solid var(--qrjump-border);
+
+			&:first-child, td:first-child { padding-left: 24px; }
+			&:last-child { padding-right: 24px; }
+		}
+
+		td {
+			padding: 14px 20px;
+			font-size: 14px;
+			border-bottom-color: var(--qrjump-border-light);
+
+			&:first-child { padding-left: 24px; }
+			&:last-child { padding-right: 24px; }
+		}
+
+		tbody tr:hover td { background: #fafbff; }
+	}
+
+	.qrjump-table-wrap { overflow: hidden; }
+
+	.qrjump-table__destination a { font-size: 13px; }
+
+	// ── Badges ───────────────────────────────────────────────────────────────
+
+	.qrjump-badge {
+		gap: 6px;
+		padding: 3px 10px 3px 8px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0;
+		text-transform: capitalize;
+		border: 0;
+
+		&::before {
+			content: "";
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			background: currentColor;
+		}
+
+		&--active   { background: var(--qrjump-success-bg); color: var(--qrjump-success); }
+		&--inactive { background: #f2f4f7; color: #475467; border: 0; }
+	}
+
+	.qrjump-copy-btn {
+		border-color: var(--qrjump-border);
+		border-radius: 6px;
+		padding: 2px 8px;
+		font-weight: 500;
+
+		&:hover { background: var(--qrjump-accent-light); border-color: transparent; }
+	}
+
+	// ── Buttons (WordPress components) ───────────────────────────────────────
+
+	.components-button {
+		border-radius: 10px;
+		font-weight: 600;
+		transition: background 0.12s, box-shadow 0.12s, color 0.12s;
+
+		&.is-primary {
+			height: 38px;
+			padding: 0 16px;
+			background: var(--qrjump-accent);
+			box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+
+			&:hover:not(:disabled),
+			&:active:not(:disabled) { background: var(--qrjump-accent-hover); }
+
+			&:disabled,
+			&[aria-disabled="true"] { background: #c7bff0; color: #fff; opacity: 1; box-shadow: none; }
+
+			&.is-destructive { background: var(--qrjump-error); }
+		}
+
+		&.is-secondary {
+			height: 38px;
+			padding: 0 16px;
+			background: #fff;
+			color: #344054;
+			box-shadow: inset 0 0 0 1px var(--qrjump-border-strong), 0 1px 2px rgba(16, 24, 40, 0.05);
+
+			&:hover:not(:disabled) { background: #f9fafb; color: var(--qrjump-text); box-shadow: inset 0 0 0 1px var(--qrjump-border-strong), 0 1px 2px rgba(16, 24, 40, 0.05); }
+
+			&.is-destructive { color: var(--qrjump-error); box-shadow: inset 0 0 0 1px #fda29b, 0 1px 2px rgba(16, 24, 40, 0.05); }
+			&.is-destructive:hover:not(:disabled) { background: var(--qrjump-error-bg); }
+		}
+
+		&.is-tertiary {
+			color: var(--qrjump-accent);
+			&:hover:not(:disabled) { background: var(--qrjump-accent-light); color: var(--qrjump-accent-hover); }
+			&.is-destructive { color: var(--qrjump-error); }
+			&.is-destructive:hover:not(:disabled) { background: var(--qrjump-error-bg); }
+		}
+
+		&.is-small { height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; }
+
+		&:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--qrjump-accent) !important; outline: none; }
+	}
+
+	// ── Form controls ────────────────────────────────────────────────────────
+
+	.components-text-control__input,
+	.components-textarea-control__input,
+	.components-base-control .components-text-control__input[type="text"],
+	.components-base-control .components-text-control__input[type="url"],
+	.components-base-control .components-text-control__input[type="email"],
+	.components-base-control .components-text-control__input[type="number"],
+	.qrjump-datetime-input,
+	.qrjump-search-input,
+	.qrjump-text-input,
+	.qrjump-select {
+		min-height: 40px;
+		padding: 0 14px;
+		font-size: 14px;
+		color: var(--qrjump-text);
+		background: #fff;
+		border: 1px solid var(--qrjump-border-strong);
+		border-radius: 10px;
+		box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+		transition: border-color 0.12s, box-shadow 0.12s;
+
+		&::placeholder { color: var(--qrjump-text-subtle); }
+
+		&:focus {
+			outline: none;
+			border-color: var(--qrjump-accent);
+			box-shadow: 0 0 0 4px var(--qrjump-accent-ring);
+		}
+	}
+
+	.components-textarea-control__input { padding: 10px 14px; line-height: 1.5; }
+
+	// Select (WP InputControl draws its border on a backdrop element).
+	.components-input-control__container { min-height: 40px; }
+	.components-input-control__backdrop {
+		border: 1px solid var(--qrjump-border-strong) !important;
+		border-radius: 10px !important;
+		box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+	}
+	.components-input-control__container:focus-within .components-input-control__backdrop {
+		border-color: var(--qrjump-accent) !important;
+		box-shadow: 0 0 0 4px var(--qrjump-accent-ring) !important;
+	}
+	.components-select-control__input { font-size: 14px; }
+
+	.qrjump-search-input {
+		padding-left: 40px;
+		background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 14px center;
+	}
+
+	.components-toggle-control .components-form-toggle { margin-right: 10px; }
+
+	.components-form-toggle.is-checked .components-form-toggle__track {
+		background: var(--qrjump-accent);
+		border-color: var(--qrjump-accent);
+	}
+
+	.qrjump-help-text,
+	.components-base-control__help {
+		font-size: 13px;
+		line-height: 1.5;
+		color: var(--qrjump-text-muted);
+	}
+
+	// ── Form sections (editor + settings) ────────────────────────────────────
+
+	.qrjump-form-section {
+		margin-bottom: 20px;
+		overflow: hidden;
+
+		&__header {
+			padding: 18px 24px;
+			background: #fff;
+			border-bottom: 1px solid var(--qrjump-border-light);
+			border-radius: 0;
+		}
+
+		&__title { font-size: 15px !important; font-weight: 650 !important; letter-spacing: -0.005em !important; }
+
+		&__body { padding: 24px; }
+
+		&--collapsible {
+			.qrjump-form-section__header--btn {
+				width: 100%;
+				border: 0;
+				cursor: pointer;
+				text-align: left;
+				transition: background 0.12s;
+				&:hover { background: #fafbff; }
+				&:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: -2px; }
+			}
+			.qrjump-form-section__chevron { font-size: 10px; color: var(--qrjump-text-subtle); }
+		}
+
+		&__badge {
+			background: var(--qrjump-accent-light);
+			color: var(--qrjump-accent);
+			border-radius: 999px;
+			padding: 2px 10px;
+			font-size: 12px;
+			font-weight: 600;
+		}
+	}
+
+	.qrjump-form-row + .qrjump-form-row { margin-top: 18px; }
+
+	// ── Editor chrome ────────────────────────────────────────────────────────
+
+	.qrjump-edit-actionbar {
+		background: rgba(255, 255, 255, 0.88);
+		backdrop-filter: saturate(180%) blur(12px);
+		border-bottom: 1px solid var(--qrjump-border);
+		box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02), 0 8px 16px -12px rgba(16, 24, 40, 0.15);
+		margin: 0 -40px 28px;
+		padding: 12px 40px;
+
+		&__url-group {
+			background: #f9fafb;
+			border-color: var(--qrjump-border);
+			border-radius: 10px;
+			padding: 5px 5px 5px 14px;
+		}
+
+		&__url-text { font-size: 13px; }
+
+		&__pill,
+		.qrjump-copy-btn {
+			font-size: 13px;
+			font-weight: 600;
+			color: #344054;
+			border: 1px solid var(--qrjump-border-strong);
+			border-radius: 8px;
+			padding: 5px 12px;
+			box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+
+			&:hover { background: #f9fafb; color: var(--qrjump-accent); border-color: var(--qrjump-border-strong); }
+		}
+	}
+
+	.qrjump-edit-layout {
+		grid-template-columns: minmax(0, 1fr) 300px;
+		gap: 28px;
+	}
+
+	.qrjump-sidebar-panel {
+		padding: 20px;
+		margin-bottom: 20px;
+		background: #fff;
+
+		&__title { font-size: 14px; font-weight: 650; margin-bottom: 14px; }
+	}
+
+	.qrjump-qr-preview {
+		overflow: hidden;
+
+		&__title { padding: 16px 20px; font-size: 14px; font-weight: 650; }
+
+		&__image-wrap {
+			background: #f9fafb;
+			padding: 28px;
+			min-height: 260px;
+		}
+
+		&__img {
+			width: 200px;
+			height: 200px;
+			border-radius: 12px;
+			background: #fff;
+			padding: 10px;
+			box-shadow: 0 0 0 1px var(--qrjump-border), 0 8px 24px -8px rgba(16, 24, 40, 0.18);
+		}
+	}
+
+	.qrjump-edit-stats {
+		overflow: hidden;
+		margin-bottom: 20px;
+		background: #fff;
+	}
+
+	// ── Settings: sticky save bar ────────────────────────────────────────────
+
+	.qrjump-form-actions--sticky {
+		bottom: 16px;
+		margin: 28px 0 0;
+		padding: 14px 20px;
+		background: rgba(255, 255, 255, 0.92);
+		backdrop-filter: saturate(180%) blur(12px);
+		border: 1px solid var(--qrjump-border);
+		border-radius: var(--qrjump-radius);
+		box-shadow: 0 12px 32px -12px rgba(16, 24, 40, 0.2);
+	}
+
+	// ── Dashboard: share bars, charts ────────────────────────────────────────
+
+	.qrjump-share-bar {
+		height: 8px;
+		border-radius: 999px;
+		background: var(--qrjump-border-light);
+		overflow: hidden;
+
+		&__fill {
+			height: 100%;
+			border-radius: 999px;
+			background: linear-gradient(90deg, var(--qrjump-accent), #6d5be0);
+			min-width: 4px;
+		}
+	}
+
+	.qrjump-chart { width: 100%; min-width: 0; }
+	.qrjump-chart--empty { padding: 28px 0; text-align: center; color: var(--qrjump-text-muted); p { margin: 0; } }
+
+	// ── Codes list ───────────────────────────────────────────────────────────
+
+	.qrjump-table-wrap { overflow-x: auto; }
+
+	.qrjump-code-identity {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 190px;
+
+		&__title { font-weight: 600; font-size: 14px; white-space: nowrap; color: var(--qrjump-text); }
+
+		&__meta {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			white-space: nowrap;
+		}
+
+		&__slug {
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			font-size: 12px;
+			color: var(--qrjump-text-muted);
+		}
+	}
+
+	.qrjump-table td .qrjump-copy-btn { opacity: 0.0; transition: opacity 0.12s, background 0.12s; }
+	.qrjump-table tr:hover td .qrjump-copy-btn,
+	.qrjump-table td .qrjump-copy-btn:focus-visible,
+	.qrjump-table td .qrjump-copy-btn--copied { opacity: 1; }
+
+	.qrjump-table__destination { max-width: 200px; }
+
+	// ── Editor: stat strip + sidebar actions ─────────────────────────────────
+
+	.qrjump-edit-stat {
+		&__label {
+			font-size: 12px;
+			font-weight: 500;
+			text-transform: none;
+			letter-spacing: 0;
+			color: var(--qrjump-text-muted);
+		}
+
+		&__value {
+			font-size: 24px;
+			font-weight: 650;
+			letter-spacing: -0.02em;
+			color: var(--qrjump-text);
+		}
+	}
+
+	.qrjump-edit-stats__meta {
+		background: #f9fafb;
+		border-top: 1px solid var(--qrjump-border-light);
+		padding: 10px 24px;
+		font-size: 13px;
+		color: var(--qrjump-text-muted);
+
+		strong { color: var(--qrjump-text); font-weight: 600; }
+	}
+
+	.qrjump-sidebar-danger {
+		gap: 8px;
+		padding-top: 14px;
+		margin-top: 12px;
+		border-top: 1px solid var(--qrjump-border-light);
+	}
+
+	.qrjump-sidebar-danger-btn {
+		flex: 1;
+		padding: 7px 10px;
+		font-size: 13px;
+		font-weight: 600;
+		text-decoration: none;
+		color: var(--qrjump-text-muted);
+		background: #fff;
+		border: 1px solid var(--qrjump-border);
+		border-radius: 8px;
+
+		&:hover { background: #f9fafb; color: var(--qrjump-text); }
+		&--delete, &:last-child { color: var(--qrjump-error); }
+		&:last-child:hover { background: var(--qrjump-error-bg); border-color: #fda29b; color: var(--qrjump-error); }
+	}
+
+	// ── Settings: label/description left, controls right ─────────────────────
+
+	.qrjump-form--settings {
+		max-width: 1040px;
+
+		.qrjump-form-section {
+			display: grid;
+			grid-template-columns: 260px minmax(0, 1fr);
+
+			@media (max-width: 900px) { grid-template-columns: 1fr; }
+		}
+
+		.qrjump-form-section__header {
+			border-bottom: 0;
+			align-items: flex-start;
+			padding: 24px 0 24px 24px;
+			background: transparent;
+
+			@media (max-width: 900px) { padding: 20px 24px 0; }
+		}
+
+		.qrjump-form-section__body {
+			padding: 24px;
+			border-left: 1px solid var(--qrjump-border-light);
+
+			@media (max-width: 900px) { border-left: 0; }
+
+			> .qrjump-help-text:first-child { margin-top: 0; }
+
+			// Keep short controls short — a rate limit doesn't need 700px.
+			.components-base-control,
+			.qrjump-form-row,
+			.qrjump-short-url-example { max-width: 520px; }
+
+			.components-textarea-control__input { max-width: 100%; }
+
+			.components-base-control:has(input[type="number"]) { max-width: 200px; }
+		}
+
+		.qrjump-form-actions--sticky { margin-top: 8px; }
+	}
+
+	// ── Layout fixes ─────────────────────────────────────────────────────────
+
+	// Let grid cells shrink below their content so measured-width charts can
+	// reflow instead of forcing the grid wider.
+	.qrjump-dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
+	.qrjump-card { min-width: 0; }
+
+	// Multi-column field rows wrap instead of squeezing their labels.
+	.qrjump-form-row--cols-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+	// Small screens: tighter gutters, wrapping headers, scrollable nav.
+	@media (max-width: 782px) {
+		.qrjump-main { padding: 20px 16px 40px; }
+		.qrjump-topbar { padding: 0 16px; }
+		.qrjump-topbar__nav { overflow-x: auto; }
+		.qrjump-topbar__meta { display: none; }
+		.qrjump-page-header { flex-wrap: wrap; }
+		.qrjump-edit-actionbar { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+		.qrjump-form--settings .qrjump-form-section__header { padding-left: 24px; }
+	}
+
+	// Editor action bar sits flush under the top bar (cancel main's top padding).
+	.qrjump-edit-actionbar { margin-top: -32px; }
+
+	// Narrow number inputs shouldn't squeeze their label.
+	.qrjump-form--settings .qrjump-form-section__body .components-base-control:has(input[type="number"]) { max-width: none; }
+	.qrjump-form--settings .qrjump-form-section__body input[type="number"] { max-width: 200px; }
+
+	// ── Focus visibility for links in tables ─────────────────────────────────
+
+	a:focus-visible { outline: 2px solid var(--qrjump-accent); outline-offset: 2px; border-radius: 4px; }
 }
